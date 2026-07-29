@@ -43,7 +43,9 @@ uv pip install -r requirements.txt -r requirements-dev.txt
 |---|---|
 | 本地开发 / 未发版 | `0.0.0+local` |
 | `workflow_dispatch` | `0.0.0+ci.<短sha>` |
-| tag `v0.1.0` | `0.1.0`（与 Release / tag 一致） |
+| tag `v0.1.0` | `0.1.0`（与 Release / tag 一致；仅打进便携包） |
+
+仓库里提交的 `_version.py` **必须一直是** `0.0.0+local`。CI（`ci.yml` 与发版流水线注入前）会校验；手改成 `0.1.0` 再 push 会失败。
 
 查看版本：
 
