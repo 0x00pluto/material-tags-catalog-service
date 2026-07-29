@@ -4,20 +4,13 @@
 
 ## 你怎么发版
 
-1. 代码已推到 GitHub（需启用 Actions）。
-2. **先写发版说明**（仓库根目录，不在 `docs/`）：
+1. 功能代码已在默认分支就绪（需启用 Actions）。
+2. **本地写发版说明并打 tag**：按 [cut-release-tag.md](./cut-release-tag.md)（查上一 tag 变更 → 写 `upgrades/vX.Y.Z.md` → 本地 commit + tag；SemVer 下 patch/minor 可自动取号，**major 必须人指定**）。约定见 [`upgrades/README.md`](../../upgrades/README.md)。
+3. **人推送**默认分支与 tag（Agent 不代推）：
 
 ```bash
-# 例如 v0.1.0 → upgrades/v0.1.0.md
-# 约定见 upgrades/README.md
-```
-
-把该文件 commit 并 push 到默认分支。
-3. 打版本 tag 并推送：
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
+git push origin main
+git push origin v0.1.0   # 换成本版 tag
 ```
 
 4. 打开仓库 **Actions** → `Release portable`，等待 Win + Mac 两个 job 完成。

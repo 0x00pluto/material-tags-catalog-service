@@ -14,3 +14,5 @@
 CI 创建 Release 时把该文件全文作为正文；**缺少对应文件则发版失败**。
 
 发版前：先写好 `upgrades/vX.Y.Z.md` 并提交，再打 tag 推送。
+
+Agent / 协作流程（查变更 → 写本目录 → 本地 tag → 人推送）：见 [`docs/workflows/cut-release-tag.md`](../docs/workflows/cut-release-tag.md)。版号按 SemVer；**升 major 必须人工显式指定**。
