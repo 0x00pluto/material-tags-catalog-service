@@ -2,7 +2,6 @@
 
 | 路径 | 摘要 |
 |---|---|
-| [prd-material-tags-catalog-service.md](./prd-material-tags-catalog-service.md) | 产品需求：索引服务 MVP / v1.0 边界与 API |
 | [contracts/material-tags-catalog.md](./contracts/material-tags-catalog.md) | JSONL / 单条标签字段契约与媒体白名单 |
 | [workflows/build-catalog-once.md](./workflows/build-catalog-once.md) | 一次性 CLI 合并 catalog |
 | [workflows/serve-catalog-service.md](./workflows/serve-catalog-service.md) | 常驻：watch + 定时 + FastAPI |

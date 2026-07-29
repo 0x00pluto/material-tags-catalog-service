@@ -18,17 +18,19 @@
 | `scripts/` | CLI 入口；含 `catalog_service/` 与 `packaging/` | 是 |
 | `tests/` | 测试，结构镜像 `src/` | 是 |
 | `docs/` | 开发文档（契约 / workflow / FAQ） | 是 |
+| `specs/` | 产品规格；`specs/prds/` 存放 PRD | 是 |
 | `upgrades/` | 发版说明：tag ↔ `vX.Y.Z.md`，供 GitHub Release 正文 | 是 |
 | `temp/` | 中间产物 / 打包 scratch | 否 |
 | `dist/` | PyInstaller 等构建产物 | 否 |
 
-正式索引源永远是客户/服务器素材盘（`CATALOG_ROOT`）。本仓不设 `cache/`、`output/`。`upgrades/` **不**登记进 `docs/doc_index.md`。
+正式索引源永远是客户/服务器素材盘（`CATALOG_ROOT`）。本仓不设 `cache/`、`output/`。`upgrades/` 与 `specs/prds/` **不**登记进 `docs/doc_index.md`。
 
 ## 文档约定
 
 | 路径 | 内容 |
 |---|---|
-| `docs/doc_index.md` | 唯一入口索引 |
+| `docs/doc_index.md` | 技术文档唯一入口索引 |
+| `specs/prds/` | PRD（`prd-{五位序号}-{feature-slug}.md`） |
 | `docs/contracts/` | 数据契约 |
 | `docs/workflows/` | 可复跑动作 |
 | `docs/faqs/` | 踩坑一篇一文件 |
@@ -61,3 +63,7 @@ uv venv && uv pip install -r requirements.txt
 |---|---|
 | [`../Codex/多媒体资源打标/`](../Codex/多媒体资源打标/) | 上游生产者：写 `*.material-tags.json`；本仓只认契约格式 |
 | [`../Codex/FileBrowser资源打标/`](../Codex/FileBrowser资源打标/) | 旁路编排；本仓不依赖 |
+
+## 团队 Cursor 命令
+
+本地命令见 [`.cursor/commands/team/`](./.cursor/commands/team/)（`/team:product-manager`、`/team:prd-accept`、`/team:python-engineer`、`/team:test-enginer`）。母版维护于 Obsidian Vibecoding「团队成员」，安装 SOP 见其使用说明。
