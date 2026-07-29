@@ -5,19 +5,28 @@
 ## 你怎么发版
 
 1. 代码已推到 GitHub（需启用 Actions）。
-2. 打版本 tag 并推送：
+2. **先写发版说明**（仓库根目录，不在 `docs/`）：
+
+```bash
+# 例如 v0.1.0 → upgrades/v0.1.0.md
+# 约定见 upgrades/README.md
+```
+
+把该文件 commit 并 push 到默认分支。
+3. 打版本 tag 并推送：
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-3. 打开仓库 **Actions** → `Release portable`，等待 Win + Mac 两个 job 完成。
-4. 打开 **Releases**，下载：
-   - `material-tags-catalog-windows-amd64.zip`
-   - `material-tags-catalog-macos-arm64.zip`
+4. 打开仓库 **Actions** → `Release portable`，等待 Win + Mac 两个 job 完成。
+5. 打开 **Releases**：正文来自 `upgrades/v0.1.0.md`，附件为两个平台 zip。
+
+缺 `upgrades/<tag>.md` 时 Release 步骤会失败（避免空说明）。
 
 也可在 Actions 里手动 `workflow_dispatch` 试打包（仅上传 artifact，不建 Release；只有 `v*` tag 才发 Release）。手动构建版本号为 `0.0.0+ci.<sha>`。
+
 
 本地调试打包（非发版主路径）：
 
@@ -44,6 +53,16 @@ curl -s http://127.0.0.1:8787/health   # 含 "version" 字段
 ```
 
 不要手改程序版本去「对齐」tag；发版只打对的 tag 即可。
+
+## Release 说明
+
+| 项 | 规则 |
+|---|---|
+| 路径 | 仓库根 `upgrades/vX.Y.Z.md`（与 tag 同名） |
+| 用途 | GitHub Release 页面正文 |
+| 缺文件 | CI 失败 |
+
+`upgrades/` 不属于开发文档，**不**写入 `docs/doc_index.md`。
 
 ## 同事怎么用（三步）
 

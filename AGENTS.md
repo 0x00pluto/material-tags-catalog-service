@@ -17,11 +17,12 @@
 | `src/` | 业务逻辑；`src/catalog_service/` | 是 |
 | `scripts/` | CLI 入口；含 `catalog_service/` 与 `packaging/` | 是 |
 | `tests/` | 测试，结构镜像 `src/` | 是 |
-| `docs/` | 文档（契约 / workflow / FAQ） | 是 |
+| `docs/` | 开发文档（契约 / workflow / FAQ） | 是 |
+| `upgrades/` | 发版说明：tag ↔ `vX.Y.Z.md`，供 GitHub Release 正文 | 是 |
 | `temp/` | 中间产物 / 打包 scratch | 否 |
 | `dist/` | PyInstaller 等构建产物 | 否 |
 
-正式索引源永远是客户/服务器素材盘（`CATALOG_ROOT`）。本仓不设 `cache/`、`output/`。
+正式索引源永远是客户/服务器素材盘（`CATALOG_ROOT`）。本仓不设 `cache/`、`output/`。`upgrades/` **不**登记进 `docs/doc_index.md`。
 
 ## 文档约定
 
