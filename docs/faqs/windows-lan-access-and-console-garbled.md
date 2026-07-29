@@ -34,3 +34,4 @@ HOST=0.0.0.0
 那是 **ANSI 颜色转义码**，老版 Windows CMD 不渲染，看起来像乱码；中文路径本身通常正常。
 
 服务端已关闭 Uvicorn 彩色输出（`use_colors=False`）。升级/换新便携包后重启即可；临时也可改用 Windows Terminal / PowerShell。
+另外新版 `start.bat` 启动时会自动执行 `chcp 65001` 切到 UTF-8 代码页，减少首屏中文提示乱码概率。

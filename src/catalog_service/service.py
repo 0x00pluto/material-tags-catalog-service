@@ -16,6 +16,7 @@ from src.catalog_service.config import Settings
 from src.catalog_service.scheduler import IntervalScheduler
 from src.catalog_service.state import AppState
 from src.catalog_service.watcher import CatalogWatcher
+from src.catalog_service._version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def configure_logging() -> None:
 
 def run_serve(settings: Settings) -> None:
     configure_logging()
+    logger.info("catalog-service version=%s", __version__)
     root = settings.catalog_root
     out = settings.resolved_out()
     if not root.is_dir():
