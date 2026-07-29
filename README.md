@@ -7,8 +7,8 @@
 运维请用 **GitHub Release 便携包**，不用装 Python。两套系统步骤一样，只是启动文件名不同。
 
 1. 打开仓库 [Releases](https://github.com/0x00pluto/material-tags-catalog-service/releases)，下载对应系统的 zip 并解压  
-   - Windows：`material-tags-catalog-windows-amd64.zip`  
-   - Mac：`material-tags-catalog-macos-arm64.zip`
+   - Windows：`material-tags-catalog-{version}-windows-amd64.zip`（例：`…-0.2.0-windows-amd64.zip`）  
+   - Mac：`material-tags-catalog-{version}-macos-arm64.zip`
 2. 把 `.env.example` 复制为 `.env`，用记事本打开，**只改一行**：
 
 ```text
@@ -23,10 +23,29 @@ CATALOG_ROOT=你的素材盘路径
    - Mac：`start.command`
 4. 浏览器打开 [http://127.0.0.1:8787/health](http://127.0.0.1:8787/health)，看到 `"status":"ok"` 即成功。
 
+### 局域网访问（运维）
+
+默认 `HOST=127.0.0.1`，**只允许本机**访问。需要同事用局域网 IP 访问时：
+
+1. 在 `.env` 中改一行（或启动时加 `--host 0.0.0.0`）：
+
+```text
+HOST=0.0.0.0
+```
+
+2. 重启服务；日志里应出现 `serving host=0.0.0.0`。
+3. 用 `http://<服务器局域网IP>:8787/health` 验活（不要用 `127.0.0.1` 从别的机器测）。
+4. 若仍不通：检查 Windows / 系统防火墙是否放行入站端口 `8787`（或你改过的 `PORT`）。
+
+详情见 [faqs/windows-lan-access-and-console-garbled.md](docs/faqs/windows-lan-access-and-console-garbled.md)。
+
 常见问题：
 
 - Mac 提示无法打开：选中文件 → 右键 → 打开
 - 端口被占用：在 `.env` 里改 `PORT`（默认 `8787`）
+- 局域网访问不了：见上文「局域网访问」
+- Windows 浏览器一直转圈：勿点选 CMD 黑窗（便携包 `start.bat` 已关快速编辑）；详见 [FAQ](docs/faqs/windows-lan-access-and-console-garbled.md)
+- 原地升级（合并解压、保留 `.env`）：见 [portable-dist-ci](docs/workflows/portable-dist-ci.md) 与 [FAQ](docs/faqs/portable-upgrade-preserves-env.md)
 - 不要安装 Python，也不要跑下面的开发命令
 
 ## 开发者本地运行（可选）

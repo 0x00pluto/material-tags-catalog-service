@@ -11,6 +11,11 @@
 查看版本：catalog-service\catalog-service.exe --version（Windows）
            ./catalog-service/catalog-service --version（macOS）
 
+原地升级：
+- 先停掉正在运行的服务，再把新版 zip「合并解压」到当前部署目录（不要先删整个文件夹）。
+- 发布包不含 .env，合并解压会保留现场 .env；.env.example 被新版本覆盖无妨。
+- 启动后核对 /health 的 version 与 zip 文件名中的版本一致。
+
 说明：
 - 无需安装 Python。
 - 主程序在 catalog-service/ 目录；一次性工具在 build-catalog/。

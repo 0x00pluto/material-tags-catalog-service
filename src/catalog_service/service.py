@@ -98,4 +98,10 @@ def run_serve(settings: Settings) -> None:
         root,
         out,
     )
-    uvicorn.run(app, host=settings.host, port=settings.port, log_level="info")
+    uvicorn.run(
+        app,
+        host=settings.host,
+        port=settings.port,
+        log_level="info",
+        use_colors=False,
+    )

@@ -18,6 +18,17 @@ cp .env.example .env   # 设置 CATALOG_ROOT
 
 Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 
+## 局域网访问
+
+默认 `HOST=127.0.0.1` 仅本机可访问。需要局域网访问时：
+
+1. `.env` 设 `HOST=0.0.0.0`，或启动加 `--host 0.0.0.0`。
+2. 重启后日志应出现 `serving host=0.0.0.0`。
+3. 用 `http://<服务器局域网IP>:8787/health` 验活。
+4. 不通时检查系统防火墙是否放行 `PORT`（默认 `8787`）。
+
+见 [faqs/windows-lan-access-and-console-garbled.md](../faqs/windows-lan-access-and-console-garbled.md)。
+
 ## 行为
 
 1. 启动时可先跑一轮 build（保证有索引可读）。

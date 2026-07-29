@@ -16,9 +16,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: material-tags-catalog-windows-amd64
           - os: macos-latest
-            artifact: material-tags-catalog-macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -56,10 +54,19 @@ jobs:
       - name: Build portable zip
         run: python scripts/packaging/build_portable.py --out dist
 
+      - name: Resolve artifact name
+        id: artifact
+        shell: bash
+        run: |
+          ZIP=$(ls dist/*.zip | head -n 1)
+          NAME=$(basename "$ZIP" .zip)
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact=${NAME}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ steps.artifact.outputs.name }}
           path: dist/*.zip
           if-no-files-found: error
 

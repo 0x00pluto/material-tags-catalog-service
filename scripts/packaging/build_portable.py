@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 ASSETS = Path(__file__).resolve().parent / "assets"
 
 
+def package_basename(version: str, os_name: str, arch: str) -> str:
+    """便携包顶层目录名与 zip basename（不含 .zip）。"""
+    return f"material-tags-catalog-{version}-{os_name}-{arch}"
+
+
 def _platform_slug() -> tuple[str, str]:
     system = platform.system().lower()
     machine = platform.machine().lower()
@@ -31,6 +36,15 @@ def _platform_slug() -> tuple[str, str]:
     else:
         arch = machine
     return os_name, arch
+
+
+def _read_package_version() -> str:
+    """读取已注入的 __version__（CI 从 tag 写入；本地多为 0.0.0+local）。"""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from src.catalog_service._version import __version__
+
+    return __version__
 
 
 def _run(cmd: list[str]) -> None:
@@ -68,27 +82,8 @@ def _pyinstaller(name: str, entry: Path, dist_dir: Path, work_dir: Path) -> Path
 def _write_start_scripts(stage: Path, os_name: str) -> None:
     """包根维护 .env；启动时复制到 exe 旁（frozen 从 exe 目录读）。"""
     if os_name == "windows":
-        (stage / "start.bat").write_text(
-            "@echo off\r\n"
-            "setlocal\r\n"
-            "cd /d \"%~dp0\"\r\n"
-            "\r\n"
-            "if not exist \".env\" (\r\n"
-            "  if exist \".env.example\" (\r\n"
-            "    copy /Y \".env.example\" \".env\" >nul\r\n"
-            "    echo 已从 .env.example 复制出 .env，请先编辑 CATALOG_ROOT 后再启动。\r\n"
-            "    notepad \".env\"\r\n"
-            "    exit /b 1\r\n"
-            "  )\r\n"
-            "  echo 缺少 .env，请复制 .env.example 为 .env 并设置 CATALOG_ROOT。\r\n"
-            "  exit /b 1\r\n"
-            ")\r\n"
-            "copy /Y \".env\" \"catalog-service\\.env\" >nul\r\n"
-            "echo 启动 catalog-service ...\r\n"
-            "\"%~dp0catalog-service\\catalog-service.exe\"\r\n"
-            "endlocal\r\n",
-            encoding="utf-8",
-        )
+        # 单一真相：assets/start.bat（含关闭 CMD 快速编辑）
+        shutil.copy2(ASSETS / "start.bat", stage / "start.bat")
         return
 
     start = stage / "start.command"
@@ -119,7 +114,8 @@ def _write_start_scripts(stage: Path, os_name: str) -> None:
 
 def build(out_root: Path) -> Path:
     os_name, arch = _platform_slug()
-    package_name = f"material-tags-catalog-{os_name}-{arch}"
+    version = _read_package_version()
+    package_name = package_basename(version, os_name, arch)
     stage = out_root / package_name
     pyi_dist = out_root / "_pyi_dist"
     pyi_work = out_root / "_pyi_work"
