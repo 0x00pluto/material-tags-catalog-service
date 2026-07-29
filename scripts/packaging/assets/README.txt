@@ -11,7 +11,14 @@
 查看版本：catalog-service\catalog-service.exe --version（Windows）
            ./catalog-service/catalog-service --version（macOS）
 
-原地升级：
+一键升级（推荐，需联网）：
+- Windows：双击 upgrade.bat（或命令行 upgrade.bat -y 跳过确认）
+- macOS：双击 upgrade.command（或 ./upgrade.command -y）
+- 脚本会从 GitHub Releases 拉当前系统对应 zip，停服后合并解压；不会覆盖已有 .env。
+- 私有仓或遇 API 限流时，可设环境变量 GITHUB_TOKEN（或 GH_TOKEN）。
+- 升级后请再双击 start.bat / start.command，打开 /health 核对 version。
+
+手动原地升级：
 - 先停掉正在运行的服务，再把新版 zip「合并解压」到当前部署目录（不要先删整个文件夹）。
 - 发布包不含 .env，合并解压会保留现场 .env；.env.example 被新版本覆盖无妨。
 - 启动后核对 /health 的 version 与 zip 文件名中的版本一致。

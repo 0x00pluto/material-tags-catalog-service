@@ -79,11 +79,31 @@ def _pyinstaller(name: str, entry: Path, dist_dir: Path, work_dir: Path) -> Path
     return built
 
 
+def upgrade_asset_names(os_name: str) -> list[str]:
+    """便携包根目录应拷贝的升级脚本文件名（相对 assets/）。"""
+    if os_name == "windows":
+        return ["upgrade.bat", "upgrade.ps1"]
+    if os_name == "macos":
+        return ["upgrade.command"]
+    return []
+
+
+def _write_upgrade_scripts(stage: Path, os_name: str) -> None:
+    """拷贝 GitHub Release 一键升级脚本到包根。"""
+    for name in upgrade_asset_names(os_name):
+        src = ASSETS / name
+        dest = stage / name
+        shutil.copy2(src, dest)
+        if name.endswith(".command"):
+            dest.chmod(0o755)
+
+
 def _write_start_scripts(stage: Path, os_name: str) -> None:
     """包根维护 .env；启动时复制到 exe 旁（frozen 从 exe 目录读）。"""
     if os_name == "windows":
         # 单一真相：assets/start.bat（含关闭 CMD 快速编辑）
         shutil.copy2(ASSETS / "start.bat", stage / "start.bat")
+        _write_upgrade_scripts(stage, os_name)
         return
 
     start = stage / "start.command"
@@ -110,6 +130,7 @@ def _write_start_scripts(stage: Path, os_name: str) -> None:
         encoding="utf-8",
     )
     start.chmod(0o755)
+    _write_upgrade_scripts(stage, os_name)
 
 
 def build(out_root: Path) -> Path:

@@ -45,6 +45,7 @@ HOST=0.0.0.0
 - 端口被占用：在 `.env` 里改 `PORT`（默认 `8787`）
 - 局域网访问不了：见上文「局域网访问」
 - Windows 浏览器一直转圈：勿点选 CMD 黑窗（便携包 `start.bat` 已关快速编辑）；详见 [FAQ](docs/faqs/windows-lan-access-and-console-garbled.md)
+- 一键升级：部署目录内运行 `upgrade.bat`（Windows）或 `upgrade.command`（Mac），从 GitHub Releases 自动下载并合并解压；见 [portable-dist-ci](docs/workflows/portable-dist-ci.md)
 - 原地升级（合并解压、保留 `.env`）：见 [portable-dist-ci](docs/workflows/portable-dist-ci.md) 与 [FAQ](docs/faqs/portable-upgrade-preserves-env.md)
 - 不要安装 Python，也不要跑下面的开发命令
 

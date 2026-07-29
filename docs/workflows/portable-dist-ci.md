@@ -78,9 +78,30 @@ curl -s http://127.0.0.1:8787/health   # 含 "version" 字段
 
 一次性重建索引：运行包内 `build-catalog/build-catalog(.exe) --root <素材盘>`。
 
-## 原地升级（合并解压）
+## 一键升级（推荐）
 
-发布包**永不包含**现场 `.env`（只有 `.env.example`）。推荐路径：
+包内自带升级脚本，从 GitHub **latest Release** 拉取**当前机器**对应的 zip（`material-tags-catalog-*-{os}-{arch}.zip`），停服后合并进**当前部署目录**，**不覆盖**已有 `.env`。
+
+| 平台 | 用法 |
+|---|---|
+| Windows | 在部署目录双击 `upgrade.bat`；无人值守：`upgrade.bat -y` |
+| macOS | 双击 `upgrade.command`；或 `./upgrade.command -y` |
+
+要求：能访问 `api.github.com` 与 Release 附件下载。默认仓库 `0x00pluto/material-tags-catalog-service`；可用环境变量 `CATALOG_UPDATE_REPO=owner/repo` 覆盖。私有仓或遇 API 限流时设 `GITHUB_TOKEN`（或 `GH_TOKEN`）。
+
+脚本行为摘要：
+
+1. 查询 `/repos/.../releases/latest`，匹配本机 os/arch 附件。
+2. 若包内 `--version` 已与远端文件名中的版本相同 → 退出（已最新）。
+3. 默认询问确认（`-y` / `--yes` 跳过）。
+4. 停 `catalog-service` → 备份 `.env` 为 `.env.bak.upgrade` → 下载解压 → 合并内容到当前目录。
+5. **不自动启动**；请再双击 `start.bat` / `start.command`，打开 `/health` 核对 `version`。
+
+手动验收要点：公开 API 能拉到附件；合并后包根 `.env` 内容不变；`/health.version` 与远端版本一致。
+
+## 原地升级（手动合并解压）
+
+发布包**永不包含**现场 `.env`（只有 `.env.example`）。无脚本或离线时：
 
 1. **停服务**：结束正在运行的 `catalog-service`（否则 Windows 可能因文件占用覆盖失败）。
 2. **合并解压**：把新 zip 解压到**当前正在用的部署目录**（覆盖同名文件；不要先删整个目录）。也可解压出带版本号的新顶层目录后，把其中内容合并进固定路径的旧部署目录。
@@ -99,11 +120,13 @@ material-tags-catalog-{version}-{os}-{arch}/
 ├── README.txt
 ├── .env.example          # 发布包不含 .env
 ├── start.bat | start.command
+├── upgrade.bat + upgrade.ps1   # Windows 一键升级
+├── upgrade.command             # macOS 一键升级
 ├── catalog-service/     # PyInstaller onedir（主程序）
 └── build-catalog/       # 一次性 build
 ```
 
-例：`material-tags-catalog-0.2.0-windows-amd64/`。
+例：`material-tags-catalog-0.2.0-windows-amd64/`（某一平台包内只会有该平台的 upgrade 脚本）。
 
 ## 失败排查
 
@@ -114,4 +137,5 @@ material-tags-catalog-{version}-{os}-{arch}/
 | macOS「无法打开」 | 选中文件 → 右键 → 打开（内部包未公证） |
 | 网络盘索引滞后 | 见 [watch-unreliable-on-network-drive](../faqs/watch-unreliable-on-network-drive.md) |
 | 升级后丢了 `.env` | 多半是删整目录/清空后再解压；见 [portable-upgrade-preserves-env](../faqs/portable-upgrade-preserves-env.md) |
+| 一键升级拉不到包 | 检查网络 / Release 是否已挂对应 `{os}-{arch}` zip；私有仓设 `GITHUB_TOKEN`；可用 `CATALOG_UPDATE_REPO` 改仓库 |
 | CI 失败 | 看 Actions 日志；确认 `requirements.txt` / 入口脚本可在该 OS 运行 |
