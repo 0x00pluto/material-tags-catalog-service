@@ -79,3 +79,71 @@ def test_catalog_404(tmp_path: Path) -> None:
     app = create_app(root=root, out=out, build_lock=BuildLock(), state=AppState())
     client = TestClient(app)
     assert client.get("/v1/catalog").status_code == 404
+
+
+def _client_with_catalog(tmp_path: Path) -> TestClient:
+    root, out = _setup_lib(tmp_path)
+    lock = BuildLock()
+    state = AppState()
+    build_catalog(root, out, trigger="test")
+    app = create_app(root=root, out=out, build_lock=lock, state=state)
+    return TestClient(app)
+
+
+def test_search_ok(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    resp = client.get("/v1/catalog/search", params={"q": "api"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["query"] == "api"
+    assert body["tokens"] == ["api"]
+    assert body["limit"] == 20
+    assert body["offset"] == 0
+    assert body["total_matched"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["stem"] == "clip"
+    assert "score" not in body["items"][0]
+
+
+def test_search_empty_q_400(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    assert client.get("/v1/catalog/search", params={"q": ""}).status_code == 400
+    assert client.get("/v1/catalog/search", params={"q": "  ,， "}).status_code == 400
+    assert client.get("/v1/catalog/search").status_code == 422
+
+
+def test_search_no_hit(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    resp = client.get("/v1/catalog/search", params={"q": "绝不存在的词xyz"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_matched"] == 0
+    assert body["items"] == []
+
+
+def test_search_404_missing_catalog(tmp_path: Path) -> None:
+    root = tmp_path / "empty"
+    root.mkdir()
+    out = root / CATALOG_FILENAME
+    app = create_app(root=root, out=out, build_lock=BuildLock(), state=AppState())
+    client = TestClient(app)
+    assert (
+        client.get("/v1/catalog/search", params={"q": "anything"}).status_code == 404
+    )
+
+
+def test_search_limit_clamped(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    resp = client.get("/v1/catalog/search", params={"q": "api", "limit": 500})
+    assert resp.status_code == 200
+    assert resp.json()["limit"] == 100
+
+
+def test_openapi_includes_search(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    schema = client.get("/openapi.json").json()
+    assert "/v1/catalog/search" in schema["paths"]
+    search_get = schema["paths"]["/v1/catalog/search"]["get"]
+    assert "CatalogSearchResponse" in schema["components"]["schemas"]
+    params = {p["name"] for p in search_get["parameters"]}
+    assert {"q", "limit", "offset"} <= params

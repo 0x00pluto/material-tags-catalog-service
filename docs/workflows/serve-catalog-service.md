@@ -41,17 +41,49 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/health` | `{ status, version, root, building }` |
-| GET | `/v1/catalog` | `application/x-ndjson` 流式；不存在 404 |
+| GET | `/v1/catalog/search` | 关键词检索 JSON；找素材**主路径** |
+| GET | `/v1/catalog` | `application/x-ndjson` 全量流式；导出/备份/小库调试；不存在 404 |
 | GET | `/v1/catalog/meta` | path / size / mtime / line_count / last_build |
 | POST | `/v1/catalog/rebuild` | 触发；忙则 202 queued |
 
-OpenAPI：`http://127.0.0.1:8787/docs`
+OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json`）
+
+### `GET /v1/catalog/search`
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `q` | （必填） | 原始查询；按空白 / `,` / `，` 分词；拆完无 token → 400 |
+| `limit` | 20 | 返回条数；`>100` 钳制为 100 |
+| `offset` | 0 | 跳过前 N 条命中（≥0） |
+
+**匹配与排序（写死）**
+
+- 可检索字段：`title`、`description`、`keywords`（只读现有 JSONL 行，不改契约字段）。
+- 多词：**AND**（每个 token 都必须在上述字段的拼接文本中子串命中）。
+- 大小写：对 haystack / needle 做 **casefold**（英文不区分大小写）。
+- 加权（排序用，**响应不返回 score**）：keywords +3 / title +2 / description +1；同一 token 每字段最多计一次；分降序，同分按 `stem` 升序。
+- 坏行跳过；catalog 文件不存在 → 404（与全量接口一致）。
+
+**响应（200）**：`{ query, tokens, limit, offset, total_matched, items }`；`items[]` 与 [catalog 行契约](../contracts/material-tags-catalog.md) 一致。
+
+无命中：`items=[]`，`total_matched=0`，仍 200。
+
+### Agent 两段式找素材（推荐）
+
+1. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄）。
+2. `GET /v1/catalog/search?q=…&limit=20`，只读返回的 `items`（参考 `total_matched`）。
+3. 精选 1～N 个 `stem`（及 `tags_path` / `media_guess`）。
+4. 若不满意：改写 `q`，或增大 `offset` 翻页（数据不变时翻页结果不与上一页重复）。
+5. catalog 缺失 404 时：先 `POST /v1/catalog/rebuild` 或检查 `CATALOG_ROOT`。
+
+不必为找片拉全量 `GET /v1/catalog`（全量仍可用于导出与调试）。
 
 ## 验收
 
 ```bash
 curl -s http://127.0.0.1:8787/health
 curl -s http://127.0.0.1:8787/v1/catalog/meta
+curl -s 'http://127.0.0.1:8787/v1/catalog/search?q=api&limit=5'
 curl -s http://127.0.0.1:8787/v1/catalog | head
 curl -s -X POST http://127.0.0.1:8787/v1/catalog/rebuild
 ```
@@ -59,5 +91,5 @@ curl -s -X POST http://127.0.0.1:8787/v1/catalog/rebuild
 ## 测试
 
 ```bash
-.venv/bin/python -m pytest tests/src/catalog_service/test_api.py -q
+.venv/bin/python -m pytest tests/src/catalog_service/test_api.py tests/src/catalog_service/test_search.py -q
 ```

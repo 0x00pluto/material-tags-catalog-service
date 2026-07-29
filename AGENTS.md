@@ -9,6 +9,7 @@
 1. 先读 [`docs/doc_index.md`](./docs/doc_index.md) 找到相关文档，再动手。
 2. 改动落进既有目录语义（见下表），不新增平级顶层目录。
 3. 新增或改动文档后，登记进 `docs/doc_index.md`。
+4. 检索本仓代码结构时，优先用 Codebase Memory MCP（`search_graph` / `trace_path` 等）。
 
 ## 目录约定
 

@@ -33,3 +33,10 @@
 默认输出：`<root>/material-tags-catalog.jsonl`（可配置覆盖）。
 
 写入策略：先写临时文件再 `os.replace`，避免读到半截。
+
+## HTTP 检索（只读）
+
+`GET /v1/catalog/search` 扫描当前 catalog JSONL，按关键词返回排序后的行子集。
+
+- **不**新增、不修改 JSONL 行字段；`items[]` 与上表一致。
+- 查询参数、匹配规则（AND 子串、casefold、加权排序）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。
