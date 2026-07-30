@@ -175,9 +175,13 @@ class BuildResult:
     trigger: str
     out_path: str
     errors: list[str] = field(default_factory=list)
-    # R1：原因拆分；skipped == skipped_no_media + skipped_invalid
+    # 原因拆分；skipped == skipped_no_media + skipped_invalid（不含 excluded）
     skipped_no_media: int = 0
     skipped_invalid: int = 0
+    # 扫描排除命中（未读文件）；与 skipped 并列
+    skipped_excluded: int = 0
+    # 合法 orphan 物理删除成功条数（仍计入 skipped_no_media）
+    purged: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

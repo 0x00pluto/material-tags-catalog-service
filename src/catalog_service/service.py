@@ -38,9 +38,17 @@ def run_serve(settings: Settings) -> None:
 
     build_lock = BuildLock()
     state = AppState()
+    exclude_set = settings.exclude_dir_name_set()
+    purge_orphan = settings.purge_orphan_tags
 
     def run_build(trigger: str):
-        result = build_catalog(root, out, trigger=trigger)
+        result = build_catalog(
+            root,
+            out,
+            trigger=trigger,
+            exclude_dir_names=exclude_set,
+            purge_orphan_tags=purge_orphan,
+        )
         state.record_build(result)
         return result
 
@@ -62,6 +70,7 @@ def run_serve(settings: Settings) -> None:
             root,
             debounce_sec=settings.watch_debounce_sec,
             on_change=on_watch,
+            exclude_dir_names=exclude_set,
         )
 
     @asynccontextmanager
@@ -91,6 +100,8 @@ def run_serve(settings: Settings) -> None:
         build_lock=build_lock,
         state=state,
         lifespan=lifespan,
+        exclude_dir_names=exclude_set,
+        purge_orphan_tags=purge_orphan,
     )
 
     logger.info(

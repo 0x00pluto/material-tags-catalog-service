@@ -69,6 +69,8 @@ def test_health_and_catalog(tmp_path: Path) -> None:
     assert body["last_build"]["skipped"] == 0
     assert body["last_build"]["skipped_no_media"] == 0
     assert body["last_build"]["skipped_invalid"] == 0
+    assert body["last_build"]["skipped_excluded"] == 0
+    assert body["last_build"]["purged"] == 0
 
     rebuild = client.post("/v1/catalog/rebuild")
     assert rebuild.status_code == 200
@@ -76,6 +78,8 @@ def test_health_and_catalog(tmp_path: Path) -> None:
     assert rebuild.json()["written"] == 1
     assert rebuild.json()["skipped_no_media"] == 0
     assert rebuild.json()["skipped_invalid"] == 0
+    assert rebuild.json()["skipped_excluded"] == 0
+    assert rebuild.json()["purged"] == 0
 
 
 def test_catalog_404(tmp_path: Path) -> None:

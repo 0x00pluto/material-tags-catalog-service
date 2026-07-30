@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
+from src.catalog_service.builder import path_has_excluded_dir_name
+from src.catalog_service.config import parse_exclude_dir_names
 from src.catalog_service.models import SUFFIX
 
 logger = logging.getLogger(__name__)
@@ -21,12 +23,28 @@ def _is_tags_event(path: str) -> bool:
 
 
 class _DebouncedTagsHandler(FileSystemEventHandler):
-    def __init__(self, debounce_sec: float, on_change: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        debounce_sec: float,
+        on_change: Callable[[], None],
+        *,
+        root: Path,
+        exclude_dir_names: frozenset[str],
+    ) -> None:
         super().__init__()
         self._debounce_sec = debounce_sec
         self._on_change = on_change
+        self._root = root
+        self._exclude_dir_names = exclude_dir_names
         self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
+
+    def _is_relevant_tags_path(self, path: str) -> bool:
+        if not _is_tags_event(path):
+            return False
+        if path_has_excluded_dir_name(path, self._root, self._exclude_dir_names):
+            return False
+        return True
 
     def _schedule(self) -> None:
         with self._lock:
@@ -46,25 +64,25 @@ class _DebouncedTagsHandler(FileSystemEventHandler):
     def on_created(self, event: FileSystemEvent) -> None:
         if event.is_directory:
             return
-        if _is_tags_event(str(event.src_path)):
+        if self._is_relevant_tags_path(str(event.src_path)):
             self._schedule()
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if event.is_directory:
             return
-        if _is_tags_event(str(event.src_path)):
+        if self._is_relevant_tags_path(str(event.src_path)):
             self._schedule()
 
     def on_deleted(self, event: FileSystemEvent) -> None:
         if event.is_directory:
             return
-        if _is_tags_event(str(event.src_path)):
+        if self._is_relevant_tags_path(str(event.src_path)):
             self._schedule()
 
     def on_moved(self, event: FileSystemEvent) -> None:
         src = str(getattr(event, "src_path", ""))
         dest = str(getattr(event, "dest_path", ""))
-        if _is_tags_event(src) or _is_tags_event(dest):
+        if self._is_relevant_tags_path(src) or self._is_relevant_tags_path(dest):
             self._schedule()
 
     def cancel(self) -> None:
@@ -81,9 +99,20 @@ class CatalogWatcher:
         *,
         debounce_sec: float,
         on_change: Callable[[], None],
+        exclude_dir_names: frozenset[str] | Sequence[str] | None = None,
     ) -> None:
         self._root = root
-        self._handler = _DebouncedTagsHandler(debounce_sec, on_change)
+        exclude_set = (
+            exclude_dir_names
+            if isinstance(exclude_dir_names, frozenset)
+            else parse_exclude_dir_names(exclude_dir_names)
+        )
+        self._handler = _DebouncedTagsHandler(
+            debounce_sec,
+            on_change,
+            root=root,
+            exclude_dir_names=exclude_set,
+        )
         self._observer = Observer()
 
     def start(self) -> None:

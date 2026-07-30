@@ -6,6 +6,7 @@
 
 - 匹配：`**/*.material-tags.json`
 - 不扫描：输出 catalog 文件名（默认 `material-tags-catalog.jsonl`）
+- **目录排除**：`SCAN_EXCLUDE_DIR_NAMES`（逗号分隔目录名，空=不排除）。相对 `CATALOG_ROOT` 的路径中 **任一路径段精确匹配** 名单 → 该标签 **不读、不写、不删**（任意深度，如 `项目/000-回收站/子/x.material-tags.json`）。无硬编码默认名单；文档示例常用 `000-回收站`。
 - 必填：`title`、`description`、`keywords`
 - 可选：`schema_version`、`generated_at`
 - 可选（schema v2 媒体元数据）：`width`、`height`、`duration_s`、`aspect_ratio`、`orientation`；缺省或坏类型写入 catalog 时为 `null`，不导致整条跳过
@@ -20,7 +21,9 @@
   2. 未命中且标签位于名为 `.material_index` 的目录时，再查其**直接父目录**；
   3. 其它情况不上翻（目录名须精确匹配 `.material_index`）。
 
-**无原媒体不入索引**：仅有标签、猜不到白名单媒体时，该条 **不写** JSONL 行，计入 `skipped`（`skipped_no_media`），并打 warning 日志。坏 JSON / 校验失败计入 `skipped_invalid`。CLI、watch、定时重建共用同一 `build_catalog`。
+**无原媒体不入索引**：仅有标签、猜不到白名单媒体时，该条 **不写** JSONL 行，计入 `skipped`（`skipped_no_media`）。
+
+**合法 orphan 物理清理**：校验通过但 `media_guess is None` 时，默认（`PURGE_ORPHAN_TAGS=true`）**物理删除**该 `*.material-tags.json`，计入 `purged`（同时仍计 `skipped_no_media`）。设为 `false` 时仅 skip、文件保留（与历史「不做 orphan 清理」一致）。坏 JSON / 校验失败计入 `skipped_invalid`，**不删**。unlink 失败：warning + 计入 errors，**不中断**整次 build。CLI、watch、定时、HTTP rebuild 共用同一 `build_catalog`。
 
 ## 输出：catalog 每一行（JSONL）
 
@@ -50,7 +53,7 @@
 
 写入策略：先写临时文件再 `os.replace`，避免读到半截。
 
-`BuildResult` / `last_build`（meta）：`skipped` = `skipped_no_media` + `skipped_invalid`；HTTP search / 全量读 **不**二次过滤历史 null 行，靠下次成功 rebuild 清掉。
+`BuildResult` / `last_build`（meta）：`skipped` = `skipped_no_media` + `skipped_invalid`；另含 `skipped_excluded`（排除目录命中，不计入 `skipped`）、`purged`（orphan 删除成功数）。HTTP search / 全量读 **不**二次过滤历史 null 行，靠下次成功 rebuild 清掉。
 
 ## HTTP 检索（只读）
 

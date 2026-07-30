@@ -50,10 +50,10 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 ## 行为
 
 1. 启动时可先跑一轮 build（保证有索引可读）。
-2. `WATCH_ENABLED`：监听 `*.material-tags.json` 增删改，debounce 后 rebuild。
+2. `WATCH_ENABLED`：监听 `*.material-tags.json` 增删改，debounce 后 rebuild；**排除目录**（`SCAN_EXCLUDE_DIR_NAMES`）内事件不触发 debounce。
 3. `SCHEDULE_ENABLED`：每 `SCHEDULE_INTERVAL_SEC` 全量 rebuild。
 4. 所有触发经 **BuildLock**：同时最多一个 build；忙时标记 pending，结束后再跑一轮。
-5. CLI / watch / 定时 / HTTP rebuild **均调用同一** `build_catalog`：无白名单原媒体的标签不写入 JSONL（契约「入索引条件」）。
+5. CLI / watch / 定时 / HTTP rebuild **均调用同一** `build_catalog`：排除目录不扫；无白名单原媒体不写 JSONL，默认 purge 合法 orphan（契约「入索引条件」）。
 
 ## API
 
@@ -62,8 +62,8 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 | GET | `/health` | `{ status, version, root, building }` |
 | GET | `/v1/catalog/search` | 关键词检索 JSON；找素材**主路径** |
 | GET | `/v1/catalog` | `application/x-ndjson` 全量流式；导出/备份/小库调试；不存在 404 |
-| GET | `/v1/catalog/meta` | path / size / mtime / line_count / last_build（含 `skipped` / `skipped_no_media` / `skipped_invalid`） |
-| POST | `/v1/catalog/rebuild` | 触发；忙则 202 queued；成功体含 written / skipped 及原因拆分 |
+| GET | `/v1/catalog/meta` | path / size / mtime / line_count / last_build（含 `skipped` / `skipped_no_media` / `skipped_invalid` / `skipped_excluded` / `purged`） |
+| POST | `/v1/catalog/rebuild` | 触发；忙则 202 queued；成功体含 written / skipped 及原因拆分（含 purged） |
 
 OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json`）
 

@@ -56,6 +56,8 @@ def create_app(
     build_lock: BuildLock,
     state: AppState,
     lifespan: Callable | None = None,
+    exclude_dir_names: frozenset[str] | None = None,
+    purge_orphan_tags: bool = True,
 ) -> FastAPI:
     kwargs: dict[str, Any] = {
         "title": "Material Tags Catalog Service",
@@ -65,9 +67,16 @@ def create_app(
         kwargs["lifespan"] = lifespan
 
     app = FastAPI(**kwargs)
+    exclude_set = exclude_dir_names if exclude_dir_names is not None else frozenset()
 
     def run_build(trigger: str):
-        result = build_catalog(root, out, trigger=trigger)
+        result = build_catalog(
+            root,
+            out,
+            trigger=trigger,
+            exclude_dir_names=exclude_set,
+            purge_orphan_tags=purge_orphan_tags,
+        )
         state.record_build(result)
         return result
 

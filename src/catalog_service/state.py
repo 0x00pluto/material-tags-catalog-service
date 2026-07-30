@@ -21,6 +21,8 @@ class AppState:
             "skipped": result.skipped,
             "skipped_no_media": result.skipped_no_media,
             "skipped_invalid": result.skipped_invalid,
+            "skipped_excluded": result.skipped_excluded,
+            "purged": result.purged,
             "duration_ms": result.duration_ms,
             "at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
             "errors": list(result.errors),

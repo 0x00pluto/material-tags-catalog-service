@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -22,6 +23,7 @@ import typer  # noqa: E402
 
 from src.catalog_service import __version__  # noqa: E402
 from src.catalog_service.builder import build_catalog  # noqa: E402
+from src.catalog_service.config import Settings  # noqa: E402
 from src.catalog_service.models import CATALOG_FILENAME  # noqa: E402
 
 
@@ -40,13 +42,23 @@ def main(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     )
+    os.environ["CATALOG_ROOT"] = str(root.resolve())
+    settings = Settings()  # type: ignore[call-arg]
     out_path = out if out is not None else root / CATALOG_FILENAME
-    result = build_catalog(root, out_path, trigger="cli")
+    result = build_catalog(
+        root,
+        out_path,
+        trigger="cli",
+        exclude_dir_names=settings.exclude_dir_name_set(),
+        purge_orphan_tags=settings.purge_orphan_tags,
+    )
     print(result.out_path)
     print(
         f"written={result.written} skipped={result.skipped} "
         f"skipped_no_media={result.skipped_no_media} "
         f"skipped_invalid={result.skipped_invalid} "
+        f"skipped_excluded={result.skipped_excluded} "
+        f"purged={result.purged} "
         f"duration_ms={result.duration_ms}",
         file=sys.stderr,
     )
