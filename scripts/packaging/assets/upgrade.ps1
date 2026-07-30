@@ -89,7 +89,8 @@ function Find-Asset([object]$Release, [string]$Os, [string]$Arch) {
 
 function Stop-CatalogService {
     Write-Host "Stopping catalog-service (if running) ..."
-    & taskkill /F /IM catalog-service.exe 2>$null | Out-Null
+    Get-Process -Name "catalog-service" -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
 }
 
