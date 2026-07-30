@@ -74,28 +74,33 @@ OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json
 | `q` | （必填） | 原始查询；按空白 / `,` / `，` 分词；拆完无 token → 400 |
 | `limit` | 20 | 返回条数；`>100` 钳制为 100 |
 | `offset` | 0 | 跳过前 N 条命中（≥0） |
+| `path_prefix` | 未传 | 可选；可重复。相对 `CATALOG_ROOT` 的目录前缀（posix）。多值 **OR**；规范化后最多 20；未传 = 全库 |
 
 **匹配与排序（写死）**
 
 - 可检索字段：`title`、`description`、`keywords`（只读现有 JSONL 行，不改契约字段）。
+- 路径关（可选）：仅看 `tags_path`。未设 `path_prefix` 则通过；否则须至少一个前缀满足**目录边界**（`tags_path == prefix` 或以 `prefix/` 开头；字面匹配、不做 casefold）。避免 `项目A` 误伤 `项目A备份`。
+- 非法 `path_prefix`（含 `..`、或以 `/` 开头的绝对路径语义、规范化后超过 20 个）→ **400**；空串丢弃；全丢弃视为未设路径。
 - 多词：**AND**（每个 token 都必须在上述字段的拼接文本中子串命中）。
 - 大小写：对 haystack / needle 做 **casefold**（英文不区分大小写）。
 - 加权（排序用，**响应不返回 score**）：keywords +3 / title +2 / description +1；同一 token 每字段最多计一次；分降序，同分按 `stem` 升序。
 - 坏行跳过；catalog 文件不存在 → 404（与全量接口一致）。
+- `total_matched`：路径关 ∩ 关键词命中的总数；分页基于该集合。
 
-**响应（200）**：`{ query, tokens, limit, offset, total_matched, items }`；`items[]` 与 [catalog 行契约](../contracts/material-tags-catalog.md) 一致。
+**响应（200）**：`{ query, tokens, limit, offset, total_matched, path_prefixes, items }`；`path_prefixes` 为规范化后生效列表（未传为 `[]`）；`items[]` 与 [catalog 行契约](../contracts/material-tags-catalog.md) 一致。
 
 无命中：`items=[]`，`total_matched=0`，仍 200。
 
 ### Agent 两段式找素材（推荐）
 
-1. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄）。
-2. `GET /v1/catalog/search?q=…&limit=20`，只读返回的 `items`（参考 `total_matched`）。
-3. 精选 1～N 个 `stem`（及 `tags_path` / `media_guess`）。
-4. 若不满意：改写 `q`，或增大 `offset` 翻页（数据不变时翻页结果不与上一页重复）。
-5. catalog 缺失 404 时：先 `POST /v1/catalog/rebuild` 或检查 `CATALOG_ROOT`。
+1. **先定项目范围**：从用户口述或盘面目录得到相对 `CATALOG_ROOT` 的路径（如 `蜜梨的素材库`），写入一个或多个 `path_prefix`（多项目并查时重复该参数）。
+2. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄）。`q` 仍必填；不可只靠路径浏览。
+3. `GET /v1/catalog/search?q=…&path_prefix=…&limit=20`，只读返回的 `items`；核对响应里的 `path_prefixes` 与 `total_matched`。
+4. 精选 1～N 个 `stem`（及 `tags_path` / `media_guess`）。
+5. 若不满意：改 `path_prefix`、改写 `q`，或增大 `offset` 翻页（数据不变时翻页结果不与上一页重复）。
+6. catalog 缺失 404 时：先 `POST /v1/catalog/rebuild` 或检查 `CATALOG_ROOT`。路径写错导致 0 命中时，对照回显的 `path_prefixes` 与盘面相对路径，而非当成服务故障。
 
-不必为找片拉全量 `GET /v1/catalog`（全量仍可用于导出与调试）。
+不必为找片拉全量 `GET /v1/catalog`（全量仍可用于导出与调试）。机器可读契约：`/openapi.json`（Swagger：`/docs`）。
 
 ## 验收
 
@@ -103,6 +108,14 @@ OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json
 curl -s http://127.0.0.1:8787/health
 curl -s http://127.0.0.1:8787/v1/catalog/meta
 curl -s 'http://127.0.0.1:8787/v1/catalog/search?q=api&limit=5'
+curl -s --get 'http://127.0.0.1:8787/v1/catalog/search' \
+  --data-urlencode 'q=图' \
+  --data-urlencode 'path_prefix=蜜梨的素材库' \
+  --data-urlencode 'limit=20'
+curl -s --get 'http://127.0.0.1:8787/v1/catalog/search' \
+  --data-urlencode 'q=图' \
+  --data-urlencode 'path_prefix=蜜梨的素材库' \
+  --data-urlencode 'path_prefix=项目A'
 curl -s http://127.0.0.1:8787/v1/catalog | head
 curl -s -X POST http://127.0.0.1:8787/v1/catalog/rebuild
 ```

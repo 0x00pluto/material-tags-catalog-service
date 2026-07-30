@@ -1,9 +1,10 @@
-"""Catalog 关键词检索：分词、AND 子串、字段加权排序。"""
+"""Catalog 关键词检索：分词、AND 子串、字段加权排序、可选路径前缀过滤。"""
 
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,12 @@ _WEIGHT_TITLE = 2
 _WEIGHT_DESCRIPTION = 1
 
 _TOKEN_SPLIT = re.compile(r"[\s,，]+")
+
+PATH_PREFIX_MAX = 20
+
+
+class PathPrefixError(ValueError):
+    """path_prefix 非法或超过上限。"""
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,57 @@ def tokenize_query(q: str) -> list[str]:
     if not q:
         return []
     return [t for t in _TOKEN_SPLIT.split(q.strip()) if t]
+
+
+def normalize_path_prefixes(raw: Sequence[str] | None) -> list[str]:
+    """规范化 path_prefix 列表：正斜杠、去首尾 /、空串丢弃、保序去重。
+
+    含 ``..`` 或以 ``/`` 开头（绝对路径语义）→ PathPrefixError。
+    规范化后超过 PATH_PREFIX_MAX → PathPrefixError。
+    """
+    if not raw:
+        return []
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if item is None:
+            continue
+        text = str(item).replace("\\", "/").strip()
+        if not text:
+            continue
+        # 拒绝绝对路径语义（以 / 开头）；勿先 strip 掉首 / 再当相对路径
+        if text.startswith("/"):
+            raise PathPrefixError("path_prefix must be relative (no leading /)")
+        stripped = text.strip("/")
+        if not stripped:
+            continue
+        parts = stripped.split("/")
+        if any(p == ".." for p in parts):
+            raise PathPrefixError("path_prefix must not contain '..'")
+        if stripped in seen:
+            continue
+        seen.add(stripped)
+        out.append(stripped)
+
+    if len(out) > PATH_PREFIX_MAX:
+        raise PathPrefixError(
+            f"path_prefix count must be <= {PATH_PREFIX_MAX} after normalize"
+        )
+    return out
+
+
+def tags_path_matches_any_prefix(
+    tags_path: str,
+    prefixes: Sequence[str],
+) -> bool:
+    """目录边界前缀：等于 prefix，或以 ``prefix/`` 开头；空 prefixes 视为通过。"""
+    if not prefixes:
+        return True
+    for prefix in prefixes:
+        if tags_path == prefix or tags_path.startswith(prefix + "/"):
+            return True
+    return False
 
 
 def score_record(
@@ -92,14 +150,19 @@ def search_catalog(
     *,
     limit: int = 20,
     offset: int = 0,
+    path_prefixes: Sequence[str] | None = None,
 ) -> SearchResult:
-    """扫描 JSONL：AND 匹配 → 加权排序 → offset/limit 切片。坏行跳过。"""
+    """扫描 JSONL：路径关 → AND 匹配 → 加权排序 → offset/limit 切片。坏行跳过。
+
+    path_prefixes 应为已规范化列表（空 = 全库）；路径关在关键词打分之前。
+    """
     if not tokens:
         return SearchResult(total_matched=0, items=[])
     if limit < 1:
         limit = 1
     if offset < 0:
         offset = 0
+    prefixes = list(path_prefixes) if path_prefixes else []
 
     scored: list[tuple[int, str, dict[str, Any]]] = []
     with Path(path).open("r", encoding="utf-8") as fh:
@@ -115,6 +178,8 @@ def search_catalog(
                 continue
             row = _row_from_obj(obj)
             if row is None:
+                continue
+            if not tags_path_matches_any_prefix(row["tags_path"], prefixes):
                 continue
             score = score_record(
                 tokens,

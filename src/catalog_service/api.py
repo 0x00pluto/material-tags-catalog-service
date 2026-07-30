@@ -12,7 +12,13 @@ from pydantic import BaseModel, Field
 
 from src.catalog_service.build_lock import BuildLock
 from src.catalog_service.builder import build_catalog
-from src.catalog_service.search import search_catalog, tokenize_query
+from src.catalog_service.search import (
+    PATH_PREFIX_MAX,
+    PathPrefixError,
+    normalize_path_prefixes,
+    search_catalog,
+    tokenize_query,
+)
 from src.catalog_service.state import AppState
 from src.catalog_service._version import __version__
 
@@ -46,6 +52,10 @@ class CatalogSearchResponse(BaseModel):
     limit: int
     offset: int
     total_matched: int
+    path_prefixes: list[str] = Field(
+        default_factory=list,
+        description="规范化后生效的 path_prefix；未传为 []",
+    )
     items: list[CatalogItem] = Field(default_factory=list)
 
 
@@ -117,7 +127,11 @@ def create_app(
             "对当前 catalog JSONL 做多词 AND 子串匹配（title / description / keywords），"
             "按字段加权排序后返回 top K。"
             "匹配对英文字段使用 casefold；响应不含 score。"
-            "找素材主路径：构造 q → search → 精选 stem；可用 offset 翻页或改写 q。"
+            "可选重复 query 参数 path_prefix：相对 CATALOG_ROOT 的目录前缀，"
+            "仅过滤 tags_path（目录边界：等于或 prefix/ 开头；多值 OR；最多 "
+            f"{PATH_PREFIX_MAX} 个；含 .. 或绝对路径 → 400）。"
+            "找素材推荐：先定项目 path_prefix → 再写 q → search → 精选 stem；"
+            "可用 offset 翻页，或改写 q / path_prefix。"
         ),
     )
     def search_catalog_endpoint(
@@ -136,6 +150,16 @@ def create_app(
             int,
             Query(ge=0, description="跳过前 N 条命中；默认 0"),
         ] = 0,
+        path_prefix: Annotated[
+            list[str] | None,
+            Query(
+                description=(
+                    "可选；相对 CATALOG_ROOT 的目录前缀（可重复，OR）。"
+                    f"仅匹配 tags_path 目录边界；规范化后最多 {PATH_PREFIX_MAX} 个；"
+                    "含 .. 或以 / 开头 → 400。未传则全库检索。"
+                ),
+            ),
+        ] = None,
     ) -> CatalogSearchResponse:
         tokens = tokenize_query(q)
         if not tokens:
@@ -143,6 +167,10 @@ def create_app(
                 status_code=400,
                 detail="q must contain at least one non-empty token",
             )
+        try:
+            path_prefixes = normalize_path_prefixes(path_prefix)
+        except PathPrefixError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not out.is_file():
             raise HTTPException(status_code=404, detail="catalog not found")
 
@@ -152,6 +180,7 @@ def create_app(
             tokens,
             limit=effective_limit,
             offset=offset,
+            path_prefixes=path_prefixes,
         )
         return CatalogSearchResponse(
             query=q,
@@ -159,6 +188,7 @@ def create_app(
             limit=effective_limit,
             offset=offset,
             total_matched=result.total_matched,
+            path_prefixes=path_prefixes,
             items=[CatalogItem.model_validate(row) for row in result.items],
         )
 

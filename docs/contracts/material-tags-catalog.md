@@ -60,4 +60,5 @@
 `GET /v1/catalog/search` 扫描当前 catalog JSONL，按关键词返回排序后的行子集。
 
 - **不**新增、不修改 JSONL 行字段；`items[]` 与上表一致。
-- 查询参数、匹配规则（AND 子串、casefold、加权排序）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。
+- 可选重复 query 参数 `path_prefix`：仅按行内 `tags_path` 做目录边界前缀过滤（多值 OR）；不改关键词 AND / 加权语义。
+- 查询参数、匹配规则（AND 子串、casefold、加权排序、路径关）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。

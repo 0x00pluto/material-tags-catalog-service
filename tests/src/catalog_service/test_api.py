@@ -110,6 +110,7 @@ def test_search_ok(tmp_path: Path) -> None:
     assert body["limit"] == 20
     assert body["offset"] == 0
     assert body["total_matched"] == 1
+    assert body["path_prefixes"] == []
     assert len(body["items"]) == 1
     assert body["items"][0]["stem"] == "clip"
     assert "score" not in body["items"][0]
@@ -190,6 +191,86 @@ def test_search_limit_clamped(tmp_path: Path) -> None:
     assert resp.json()["limit"] == 100
 
 
+def test_search_path_prefix(tmp_path: Path) -> None:
+    root = tmp_path / "media"
+    root.mkdir()
+    # 同关键词、不同项目目录
+    for stem, sub in (("a1", "项目A"), ("b1", "项目B"), ("bak", "项目A备份")):
+        d = root / sub
+        d.mkdir(parents=True, exist_ok=True)
+        tags = d / tags_filename_for_stem(stem)
+        tags.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1",
+                    "title": "图素材",
+                    "description": "d",
+                    "keywords": "图",
+                },
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (d / f"{stem}.mp4").write_bytes(b"x")
+    out = root / CATALOG_FILENAME
+    build_catalog(root, out, trigger="test")
+    client = TestClient(
+        create_app(root=root, out=out, build_lock=BuildLock(), state=AppState())
+    )
+
+    single = client.get(
+        "/v1/catalog/search",
+        params=[("q", "图"), ("path_prefix", "项目A")],
+    )
+    assert single.status_code == 200
+    body = single.json()
+    assert body["path_prefixes"] == ["项目A"]
+    assert body["total_matched"] == 1
+    assert body["items"][0]["stem"] == "a1"
+
+    multi = client.get(
+        "/v1/catalog/search",
+        params=[("q", "图"), ("path_prefix", "项目A"), ("path_prefix", "项目B")],
+    )
+    assert multi.status_code == 200
+    mbody = multi.json()
+    assert mbody["path_prefixes"] == ["项目A", "项目B"]
+    assert mbody["total_matched"] == 2
+    assert {i["stem"] for i in mbody["items"]} == {"a1", "b1"}
+
+
+def test_search_path_prefix_invalid_400(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    assert (
+        client.get(
+            "/v1/catalog/search",
+            params=[("q", "api"), ("path_prefix", "..")],
+        ).status_code
+        == 400
+    )
+    assert (
+        client.get(
+            "/v1/catalog/search",
+            params=[("q", "api"), ("path_prefix", "/abs")],
+        ).status_code
+        == 400
+    )
+    too_many = [("q", "api")] + [("path_prefix", f"p{i}") for i in range(21)]
+    assert client.get("/v1/catalog/search", params=too_many).status_code == 400
+
+
+def test_search_path_prefix_still_requires_q(tmp_path: Path) -> None:
+    client = _client_with_catalog(tmp_path)
+    assert (
+        client.get(
+            "/v1/catalog/search",
+            params=[("q", "  "), ("path_prefix", "项目A")],
+        ).status_code
+        == 400
+    )
+
+
 def test_openapi_includes_search(tmp_path: Path) -> None:
     client = _client_with_catalog(tmp_path)
     schema = client.get("/openapi.json").json()
@@ -197,4 +278,6 @@ def test_openapi_includes_search(tmp_path: Path) -> None:
     search_get = schema["paths"]["/v1/catalog/search"]["get"]
     assert "CatalogSearchResponse" in schema["components"]["schemas"]
     params = {p["name"] for p in search_get["parameters"]}
-    assert {"q", "limit", "offset"} <= params
+    assert {"q", "limit", "offset", "path_prefix"} <= params
+    props = schema["components"]["schemas"]["CatalogSearchResponse"]["properties"]
+    assert "path_prefixes" in props

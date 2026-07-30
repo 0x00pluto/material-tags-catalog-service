@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -16,6 +17,7 @@ from src.catalog_service.config import Settings
 from src.catalog_service.scheduler import IntervalScheduler
 from src.catalog_service.state import AppState
 from src.catalog_service.watcher import CatalogWatcher
+from src.catalog_service.win_console import disable_quick_edit
 from src.catalog_service._version import __version__
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,14 @@ def configure_logging() -> None:
 
 def run_serve(settings: Settings) -> None:
     configure_logging()
+    if disable_quick_edit():
+        logger.info("console quick-edit disabled")
+    elif sys.platform == "win32":
+        logger.warning(
+            "console quick-edit not disabled "
+            "(no console or SetConsoleMode failed); "
+            "avoid clicking the console window"
+        )
     logger.info("catalog-service version=%s", __version__)
     root = settings.catalog_root
     out = settings.resolved_out()

@@ -22,12 +22,14 @@ HOST=0.0.0.0
 
 多半是 **Windows CMD「快速编辑模式」**：用鼠标点选黑窗口会进入选中态，**整个控制台进程（含 HTTP）被暂停**；按 Esc / Ctrl+C 往往只是退出选中并解冻，并不是服务真挂了。
 
-便携包 `start.bat` 启动时会关闭**本窗口**的快速编辑。仍建议：
+便携包 `start.bat` 启动时会尝试关闭**本窗口**的快速编辑；服务进程内也会再关一次。启动日志应出现 `console quick-edit disabled`。
 
-- 不要用鼠标去点/拖选正在跑服务的 CMD 黑窗
-- 或改用 Windows Terminal / PowerShell
+即使用 `start.bat` 仍假死时：
 
-旧包未含此防护时：CMD 标题栏右键 → 属性 → 选项 → 取消「快速编辑模式」。
+1. 看日志有没有 `console quick-edit disabled`；若是 WARNING「not disabled」或完全没有该行，请换新便携包 / 确认部署目录里的 `start.bat` 已更新
+2. 不要用鼠标去点/拖选正在跑服务的 CMD 黑窗
+3. 或改用 Windows Terminal / PowerShell
+4. 仍可手动：CMD 标题栏右键 → 属性 → 选项 → 取消「快速编辑模式」（可勾「设为默认值」）
 
 ## 控制台出现 `[32m` / `□[0m` 一类字符
 

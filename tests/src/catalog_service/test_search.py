@@ -5,7 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.catalog_service.search import score_record, search_catalog, tokenize_query
+import pytest
+
+from src.catalog_service.search import (
+    PATH_PREFIX_MAX,
+    PathPrefixError,
+    normalize_path_prefixes,
+    score_record,
+    search_catalog,
+    tags_path_matches_any_prefix,
+    tokenize_query,
+)
 
 
 def test_tokenize_query() -> None:
@@ -15,6 +25,50 @@ def test_tokenize_query() -> None:
     assert tokenize_query("") == []
     assert tokenize_query("   ,，  ") == []
     assert tokenize_query("solo") == ["solo"]
+
+
+def test_normalize_path_prefixes_basic() -> None:
+    assert normalize_path_prefixes(None) == []
+    assert normalize_path_prefixes([]) == []
+    assert normalize_path_prefixes(["", "  "]) == []
+    assert normalize_path_prefixes([r"蜜梨的素材库\子目录"]) == ["蜜梨的素材库/子目录"]
+    # 去首尾 /、保序去重
+    assert normalize_path_prefixes(["项目A/", "项目B", "项目A", "项目B/"]) == [
+        "项目A",
+        "项目B",
+    ]
+
+
+def test_normalize_path_prefixes_rejects_absolute_and_dotdot() -> None:
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes(["/绝对路径"])
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes([r"\绝对"])  # 变为 /绝对
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes([".."])
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes(["foo/../bar"])
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes(["a/../../b"])
+
+
+def test_normalize_path_prefixes_max() -> None:
+    ok = [f"p{i}" for i in range(PATH_PREFIX_MAX)]
+    assert len(normalize_path_prefixes(ok)) == PATH_PREFIX_MAX
+    with pytest.raises(PathPrefixError):
+        normalize_path_prefixes([f"p{i}" for i in range(PATH_PREFIX_MAX + 1)])
+
+
+def test_tags_path_matches_directory_boundary() -> None:
+    assert tags_path_matches_any_prefix("项目A", ["项目A"])
+    assert tags_path_matches_any_prefix("项目A/x.material-tags.json", ["项目A"])
+    assert not tags_path_matches_any_prefix(
+        "项目A备份/x.material-tags.json", ["项目A"]
+    )
+    assert tags_path_matches_any_prefix("任意", [])
+    # OR
+    assert tags_path_matches_any_prefix("B/y.json", ["A", "B"])
+    assert not tags_path_matches_any_prefix("C/y.json", ["A", "B"])
 
 
 def test_score_and_and_weights() -> None:
@@ -30,6 +84,13 @@ def test_score_and_and_weights() -> None:
     assert score_record(["玄关", "衣帽架"], "玄关", "描述", "玄关") is None
     # casefold
     assert score_record(["Door"], "title", "desc", "front door") == 3
+
+
+def _write_catalog(path: Path, rows: list[dict]) -> None:
+    path.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_search_catalog_sort_and_paging(tmp_path: Path) -> None:
@@ -76,10 +137,7 @@ def test_search_catalog_sort_and_paging(tmp_path: Path) -> None:
         },
     ]
     path = tmp_path / "catalog.jsonl"
-    path.write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
-        encoding="utf-8",
-    )
+    _write_catalog(path, rows)
 
     tokens = ["玄关"]
     # C: kw+title=5；A: kw=3；B: title=2；同分按 stem 升序不冲突
@@ -92,6 +150,58 @@ def test_search_catalog_sort_and_paging(tmp_path: Path) -> None:
     assert [i["stem"] for i in page1.items] == ["C", "A"]
     assert [i["stem"] for i in page2.items] == ["B"]
     assert page1.total_matched == page2.total_matched == 3
+
+
+def test_search_catalog_path_prefix_filter(tmp_path: Path) -> None:
+    rows = [
+        {
+            "stem": "in_a",
+            "tags_path": "项目A/in_a.material-tags.json",
+            "title": "图",
+            "description": "d",
+            "keywords": "k",
+        },
+        {
+            "stem": "sibling",
+            "tags_path": "项目A备份/sibling.material-tags.json",
+            "title": "图",
+            "description": "d",
+            "keywords": "k",
+        },
+        {
+            "stem": "in_b",
+            "tags_path": "项目B/in_b.material-tags.json",
+            "title": "图",
+            "description": "d",
+            "keywords": "k",
+        },
+        {
+            "stem": "exact_dir",
+            "tags_path": "项目A",
+            "title": "图",
+            "description": "d",
+            "keywords": "k",
+        },
+    ]
+    path = tmp_path / "catalog.jsonl"
+    _write_catalog(path, rows)
+
+    # 未传前缀：全库
+    all_hit = search_catalog(path, ["图"], limit=20, offset=0)
+    assert all_hit.total_matched == 4
+
+    only_a = search_catalog(
+        path, ["图"], limit=20, offset=0, path_prefixes=["项目A"]
+    )
+    assert only_a.total_matched == 2
+    assert {i["stem"] for i in only_a.items} == {"in_a", "exact_dir"}
+
+    # 多前缀 OR
+    a_or_b = search_catalog(
+        path, ["图"], limit=20, offset=0, path_prefixes=["项目A", "项目B"]
+    )
+    assert a_or_b.total_matched == 3
+    assert {i["stem"] for i in a_or_b.items} == {"in_a", "exact_dir", "in_b"}
 
 
 def test_search_catalog_tie_break_stem(tmp_path: Path) -> None:
@@ -112,10 +222,7 @@ def test_search_catalog_tie_break_stem(tmp_path: Path) -> None:
         },
     ]
     path = tmp_path / "catalog.jsonl"
-    path.write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
-        encoding="utf-8",
-    )
+    _write_catalog(path, rows)
     result = search_catalog(path, ["门"], limit=10, offset=0)
     assert [i["stem"] for i in result.items] == ["m1", "m2"]
 
@@ -164,10 +271,7 @@ def test_search_catalog_and_multi_token(tmp_path: Path) -> None:
         },
     ]
     path = tmp_path / "catalog.jsonl"
-    path.write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
-        encoding="utf-8",
-    )
+    _write_catalog(path, rows)
     result = search_catalog(path, ["玄关", "衣帽架"], limit=10, offset=0)
     assert result.total_matched == 1
     assert result.items[0]["stem"] == "both"
