@@ -8,6 +8,7 @@
 - 不扫描：输出 catalog 文件名（默认 `material-tags-catalog.jsonl`）
 - 必填：`title`、`description`、`keywords`
 - 可选：`schema_version`、`generated_at`
+- 可选（schema v2 媒体元数据）：`width`、`height`、`duration_s`、`aspect_ratio`、`orientation`；缺省或坏类型写入 catalog 时为 `null`，不导致整条跳过
 
 命名：`<stem>.material-tags.json`。
 
@@ -32,6 +33,11 @@
 | `title` | string | 标题 |
 | `description` | string | 描述 |
 | `keywords` | string | 关键词 |
+| `width` | int \| null | 像素宽（v2 可选） |
+| `height` | int \| null | 像素高（v2 可选） |
+| `duration_s` | number \| null | 时长秒（v2 可选） |
+| `aspect_ratio` | string \| null | 画幅比，如 `9:16`（v2 可选） |
+| `orientation` | string \| null | 方向描述，如 `竖屏`（v2 可选） |
 
 ## 媒体扩展名白名单
 

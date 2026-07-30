@@ -31,6 +31,11 @@ class CatalogItem(BaseModel):
     title: str = ""
     description: str = ""
     keywords: str = ""
+    width: int | None = None
+    height: int | None = None
+    duration_s: float | None = None
+    aspect_ratio: str | None = None
+    orientation: str | None = None
 
 
 class CatalogSearchResponse(BaseModel):

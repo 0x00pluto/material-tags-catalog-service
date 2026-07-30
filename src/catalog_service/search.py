@@ -78,6 +78,11 @@ def _row_from_obj(obj: dict[str, Any]) -> dict[str, Any] | None:
         "title": str(obj.get("title") or ""),
         "description": str(obj.get("description") or ""),
         "keywords": str(obj.get("keywords") or ""),
+        "width": obj.get("width"),
+        "height": obj.get("height"),
+        "duration_s": obj.get("duration_s"),
+        "aspect_ratio": obj.get("aspect_ratio"),
+        "orientation": obj.get("orientation"),
     }
 
 

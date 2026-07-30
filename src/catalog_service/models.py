@@ -13,6 +13,10 @@ CATALOG_FILENAME = "material-tags-catalog.jsonl"
 
 _REQUIRED_KEYS = ("title", "description", "keywords")
 _META_KEYS = ("schema_version", "generated_at")
+# schema v2 可选媒体元数据；缺省 / 坏类型 → null，不拖垮入库
+_MEDIA_META_INT_KEYS = ("width", "height")
+_MEDIA_META_FLOAT_KEYS = ("duration_s",)
+_MEDIA_META_STR_KEYS = ("aspect_ratio", "orientation")
 
 
 def tags_filename_for_stem(stem: str) -> str:
@@ -75,13 +79,72 @@ def _optional_meta(data: Mapping[str, object]) -> dict[str, str | None]:
     return meta
 
 
-def load_material_tags(path: Path | str) -> dict[str, str | None]:
+def _optional_int(raw: object) -> int | None:
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        if raw != raw:  # NaN
+            return None
+        return int(raw)
+    try:
+        text = str(raw).strip()
+        if not text:
+            return None
+        return int(float(text))
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(raw: object) -> float | None:
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        value = float(raw)
+        if value != value:  # NaN
+            return None
+        return value
+    try:
+        text = str(raw).strip()
+        if not text:
+            return None
+        value = float(text)
+        if value != value:
+            return None
+        return value
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_str(raw: object) -> str | None:
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    return text or None
+
+
+def _optional_media_meta(
+    data: Mapping[str, object],
+) -> dict[str, int | float | str | None]:
+    meta: dict[str, int | float | str | None] = {}
+    for key in _MEDIA_META_INT_KEYS:
+        meta[key] = _optional_int(data.get(key))
+    for key in _MEDIA_META_FLOAT_KEYS:
+        meta[key] = _optional_float(data.get(key))
+    for key in _MEDIA_META_STR_KEYS:
+        meta[key] = _optional_str(data.get(key))
+    return meta
+
+
+def load_material_tags(path: Path | str) -> dict[str, Any]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("material-tags 根节点必须是对象")
     content = validate_tags(data)
     meta = _optional_meta(data)
-    return {**content, **meta}
+    media_meta = _optional_media_meta(data)
+    return {**content, **meta, **media_meta}
 
 
 @dataclass
@@ -94,6 +157,11 @@ class CatalogRecord:
     title: str
     description: str
     keywords: str
+    width: int | None = None
+    height: int | None = None
+    duration_s: float | None = None
+    aspect_ratio: str | None = None
+    orientation: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

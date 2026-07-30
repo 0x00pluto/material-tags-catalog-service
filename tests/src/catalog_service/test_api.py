@@ -109,6 +109,47 @@ def test_search_ok(tmp_path: Path) -> None:
     assert len(body["items"]) == 1
     assert body["items"][0]["stem"] == "clip"
     assert "score" not in body["items"][0]
+    # V1 样例：媒体元数据键存在且为 null
+    item = body["items"][0]
+    assert item["width"] is None
+    assert item["height"] is None
+    assert item["duration_s"] is None
+    assert item["aspect_ratio"] is None
+    assert item["orientation"] is None
+
+
+def test_search_returns_v2_media_meta(tmp_path: Path) -> None:
+    root = tmp_path / "media"
+    root.mkdir()
+    sample_v2 = {
+        "schema_version": "2",
+        "generated_at": "2026-07-30T11:05:03+08:00",
+        "title": "玄关衣帽鞋凳特写",
+        "description": "竖屏产品特写",
+        "keywords": "玄关衣帽架, 鞋凳",
+        "width": 1080,
+        "height": 1920,
+        "duration_s": 11.01,
+        "aspect_ratio": "9:16",
+        "orientation": "竖屏",
+    }
+    tags = root / tags_filename_for_stem("v2clip")
+    tags.write_text(json.dumps(sample_v2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (root / "v2clip.mp4").write_bytes(b"x")
+    out = root / CATALOG_FILENAME
+    build_catalog(root, out, trigger="test")
+    app = create_app(root=root, out=out, build_lock=BuildLock(), state=AppState())
+    client = TestClient(app)
+
+    resp = client.get("/v1/catalog/search", params={"q": "玄关", "limit": 5})
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert item["schema_version"] == "2"
+    assert item["width"] == 1080
+    assert item["height"] == 1920
+    assert item["duration_s"] == 11.01
+    assert item["aspect_ratio"] == "9:16"
+    assert item["orientation"] == "竖屏"
 
 
 def test_search_empty_q_400(tmp_path: Path) -> None:

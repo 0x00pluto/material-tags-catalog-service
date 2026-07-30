@@ -54,6 +54,11 @@ def catalog_record(tags_path: Path, root: Path) -> CatalogRecord:
         title=str(tags["title"]),
         description=str(tags["description"]),
         keywords=str(tags["keywords"]),
+        width=tags.get("width"),
+        height=tags.get("height"),
+        duration_s=tags.get("duration_s"),
+        aspect_ratio=tags.get("aspect_ratio"),
+        orientation=tags.get("orientation"),
     )
 
 

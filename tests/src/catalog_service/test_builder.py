@@ -154,3 +154,80 @@ def test_load_legacy_meta_null(tmp_path: Path) -> None:
     loaded = load_material_tags(path)
     assert loaded["schema_version"] is None
     assert loaded["generated_at"] is None
+    assert loaded["width"] is None
+    assert loaded["height"] is None
+    assert loaded["duration_s"] is None
+    assert loaded["aspect_ratio"] is None
+    assert loaded["orientation"] is None
+
+
+SAMPLE_TAGS_V2 = {
+    "schema_version": "2",
+    "generated_at": "2026-07-30T11:05:03+08:00",
+    "title": "逛园区_玄关衣帽鞋凳特写",
+    "description": "竖屏9:16无人物产品特写",
+    "keywords": "玄关衣帽架, 鞋凳, 竖屏",
+    "width": 1080,
+    "height": 1920,
+    "duration_s": 11.01,
+    "aspect_ratio": "9:16",
+    "orientation": "竖屏",
+}
+
+
+def test_build_catalog_v2_media_meta(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(root / tags_filename_for_stem("v2clip"), SAMPLE_TAGS_V2)
+    (root / "v2clip.mp4").write_bytes(b"x")
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 1
+    row = json.loads(out.read_text(encoding="utf-8").strip())
+    assert row["schema_version"] == "2"
+    assert row["width"] == 1080
+    assert row["height"] == 1920
+    assert row["duration_s"] == 11.01
+    assert row["aspect_ratio"] == "9:16"
+    assert row["orientation"] == "竖屏"
+
+
+def test_build_catalog_v1_media_meta_null(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(root / tags_filename_for_stem("v1clip"), SAMPLE_TAGS)
+    (root / "v1clip.mp4").write_bytes(b"x")
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 1
+    row = json.loads(out.read_text(encoding="utf-8").strip())
+    assert row["width"] is None
+    assert row["height"] is None
+    assert row["duration_s"] is None
+    assert row["aspect_ratio"] is None
+    assert row["orientation"] is None
+
+
+def test_load_bad_media_meta_becomes_null(tmp_path: Path) -> None:
+    path = tmp_path / tags_filename_for_stem("badmeta")
+    _write_tags(
+        path,
+        {
+            "title": "t",
+            "description": "d",
+            "keywords": "k",
+            "width": "not-a-number",
+            "height": True,
+            "duration_s": {},
+            "aspect_ratio": "  ",
+            "orientation": None,
+        },
+    )
+    loaded = load_material_tags(path)
+    assert loaded["width"] is None
+    assert loaded["height"] is None
+    assert loaded["duration_s"] is None
+    assert loaded["aspect_ratio"] is None
+    assert loaded["orientation"] is None

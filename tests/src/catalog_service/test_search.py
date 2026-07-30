@@ -171,3 +171,51 @@ def test_search_catalog_and_multi_token(tmp_path: Path) -> None:
     result = search_catalog(path, ["玄关", "衣帽架"], limit=10, offset=0)
     assert result.total_matched == 1
     assert result.items[0]["stem"] == "both"
+
+
+def test_search_passes_v2_media_meta(tmp_path: Path) -> None:
+    row = {
+        "stem": "v2",
+        "tags_path": "v2.material-tags.json",
+        "media_guess": "v2.mp4",
+        "schema_version": "2",
+        "generated_at": "2026-07-30T11:05:03+08:00",
+        "title": "玄关衣帽",
+        "description": "产品特写",
+        "keywords": "竖屏",
+        "width": 1080,
+        "height": 1920,
+        "duration_s": 11.01,
+        "aspect_ratio": "9:16",
+        "orientation": "竖屏",
+    }
+    path = tmp_path / "catalog.jsonl"
+    path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    result = search_catalog(path, ["玄关"], limit=5, offset=0)
+    assert result.total_matched == 1
+    item = result.items[0]
+    assert item["width"] == 1080
+    assert item["height"] == 1920
+    assert item["duration_s"] == 11.01
+    assert item["aspect_ratio"] == "9:16"
+    assert item["orientation"] == "竖屏"
+
+
+def test_search_legacy_row_media_meta_null(tmp_path: Path) -> None:
+    row = {
+        "stem": "legacy",
+        "tags_path": "legacy.material-tags.json",
+        "title": "玄关",
+        "description": "d",
+        "keywords": "k",
+    }
+    path = tmp_path / "catalog.jsonl"
+    path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    result = search_catalog(path, ["玄关"], limit=5, offset=0)
+    assert result.total_matched == 1
+    item = result.items[0]
+    assert item["width"] is None
+    assert item["height"] is None
+    assert item["duration_s"] is None
+    assert item["aspect_ratio"] is None
+    assert item["orientation"] is None
