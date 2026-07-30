@@ -4,6 +4,18 @@
 
 ## 入口
 
+开发联调（推荐，仓库根目录执行）：
+
+```bash
+./scripts/catalog_service/dev-serve.sh
+# 或指定素材盘：
+./scripts/catalog_service/dev-serve.sh /path/to/media-library
+```
+
+未配置 `CATALOG_ROOT` / `.env` 时，脚本会用 `temp/dev-media` 自动放一份样例标签+mp4。浏览器打开 `http://127.0.0.1:8787/docs`。
+
+正式 / 手动：
+
 ```bash
 cd <本工作区>
 cp .env.example .env   # 设置 CATALOG_ROOT
@@ -17,6 +29,12 @@ cp .env.example .env   # 设置 CATALOG_ROOT
 ```
 
 Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
+
+单元测试一键：
+
+```bash
+./scripts/catalog_service/dev-test.sh
+```
 
 ## 局域网访问
 
@@ -35,6 +53,7 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 2. `WATCH_ENABLED`：监听 `*.material-tags.json` 增删改，debounce 后 rebuild。
 3. `SCHEDULE_ENABLED`：每 `SCHEDULE_INTERVAL_SEC` 全量 rebuild。
 4. 所有触发经 **BuildLock**：同时最多一个 build；忙时标记 pending，结束后再跑一轮。
+5. CLI / watch / 定时 / HTTP rebuild **均调用同一** `build_catalog`：无白名单原媒体的标签不写入 JSONL（契约「入索引条件」）。
 
 ## API
 
@@ -43,8 +62,8 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\serve.py`
 | GET | `/health` | `{ status, version, root, building }` |
 | GET | `/v1/catalog/search` | 关键词检索 JSON；找素材**主路径** |
 | GET | `/v1/catalog` | `application/x-ndjson` 全量流式；导出/备份/小库调试；不存在 404 |
-| GET | `/v1/catalog/meta` | path / size / mtime / line_count / last_build |
-| POST | `/v1/catalog/rebuild` | 触发；忙则 202 queued |
+| GET | `/v1/catalog/meta` | path / size / mtime / line_count / last_build（含 `skipped` / `skipped_no_media` / `skipped_invalid`） |
+| POST | `/v1/catalog/rebuild` | 触发；忙则 202 queued；成功体含 written / skipped 及原因拆分 |
 
 OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json`）
 

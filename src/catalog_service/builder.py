@@ -75,7 +75,8 @@ def build_catalog(
     catalog_name = out_path.name
 
     written = 0
-    skipped = 0
+    skipped_no_media = 0
+    skipped_invalid = 0
     errors: list[str] = []
 
     try:
@@ -86,8 +87,14 @@ def build_catalog(
                 try:
                     record = catalog_record(tags_path, root_path)
                 except Exception as exc:  # noqa: BLE001 — 单条容错
-                    skipped += 1
+                    skipped_invalid += 1
                     msg = f"skip {tags_path}: {exc}"
+                    errors.append(msg)
+                    logger.warning(msg)
+                    continue
+                if record.media_guess is None:
+                    skipped_no_media += 1
+                    msg = f"skip {tags_path}: no media (guess_media_path miss)"
                     errors.append(msg)
                     logger.warning(msg)
                     continue
@@ -102,6 +109,7 @@ def build_catalog(
                 pass
         raise
 
+    skipped = skipped_no_media + skipped_invalid
     duration_ms = int((time.perf_counter() - started) * 1000)
     result = BuildResult(
         written=written,
@@ -110,12 +118,17 @@ def build_catalog(
         trigger=trigger,
         out_path=str(out_path),
         errors=errors[:20],
+        skipped_no_media=skipped_no_media,
+        skipped_invalid=skipped_invalid,
     )
     logger.info(
-        "build done trigger=%s written=%s skipped=%s duration_ms=%s out=%s",
+        "build done trigger=%s written=%s skipped=%s "
+        "skipped_no_media=%s skipped_invalid=%s duration_ms=%s out=%s",
         trigger,
         written,
         skipped,
+        skipped_no_media,
+        skipped_invalid,
         duration_ms,
         out_path,
     )

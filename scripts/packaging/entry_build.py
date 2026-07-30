@@ -44,7 +44,10 @@ def main(
     result = build_catalog(root, out_path, trigger="cli")
     print(result.out_path)
     print(
-        f"written={result.written} skipped={result.skipped} duration_ms={result.duration_ms}",
+        f"written={result.written} skipped={result.skipped} "
+        f"skipped_no_media={result.skipped_no_media} "
+        f"skipped_invalid={result.skipped_invalid} "
+        f"duration_ms={result.duration_ms}",
         file=sys.stderr,
     )
     raise SystemExit(0 if result.skipped == 0 else 1)

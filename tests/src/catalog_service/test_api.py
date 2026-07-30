@@ -27,6 +27,7 @@ def _setup_lib(tmp_path: Path) -> tuple[Path, Path]:
     root.mkdir()
     tags = root / tags_filename_for_stem("clip")
     tags.write_text(json.dumps(SAMPLE, ensure_ascii=False) + "\n", encoding="utf-8")
+    (root / "clip.mp4").write_bytes(b"x")
     out = root / CATALOG_FILENAME
     return root, out
 
@@ -65,11 +66,16 @@ def test_health_and_catalog(tmp_path: Path) -> None:
     assert body["exists"] is True
     assert body["line_count"] == 1
     assert body["last_build"]["written"] == 1
+    assert body["last_build"]["skipped"] == 0
+    assert body["last_build"]["skipped_no_media"] == 0
+    assert body["last_build"]["skipped_invalid"] == 0
 
     rebuild = client.post("/v1/catalog/rebuild")
     assert rebuild.status_code == 200
     assert rebuild.json()["status"] == "ok"
     assert rebuild.json()["written"] == 1
+    assert rebuild.json()["skipped_no_media"] == 0
+    assert rebuild.json()["skipped_invalid"] == 0
 
 
 def test_catalog_404(tmp_path: Path) -> None:

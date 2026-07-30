@@ -2,9 +2,9 @@
 
 | 路径 | 摘要 |
 |---|---|
-| [contracts/material-tags-catalog.md](./contracts/material-tags-catalog.md) | JSONL / 单条标签字段契约与媒体白名单；HTTP search 只读现有行 |
-| [workflows/build-catalog-once.md](./workflows/build-catalog-once.md) | 一次性 CLI 合并 catalog |
-| [workflows/serve-catalog-service.md](./workflows/serve-catalog-service.md) | 常驻：watch + 定时 + FastAPI（含 `/v1/catalog/search`） |
+| [contracts/material-tags-catalog.md](./contracts/material-tags-catalog.md) | JSONL / 标签契约与媒体白名单；无原媒体不入索引；HTTP search 只读现有行 |
+| [workflows/build-catalog-once.md](./workflows/build-catalog-once.md) | 一次性 CLI 合并 catalog（与常驻共用写侧过滤） |
+| [workflows/serve-catalog-service.md](./workflows/serve-catalog-service.md) | 常驻：watch + 定时 + FastAPI；开发一键 `dev-serve.sh` / `dev-test.sh` |
 | [workflows/portable-dist-ci.md](./workflows/portable-dist-ci.md) | Win/Mac 便携包：CI 打 tag 发 Release、一键升级脚本、同事三步用法 |
 | [workflows/cut-release-tag.md](./workflows/cut-release-tag.md) | 本地写 upgrades + 打 tag（SemVer；major 须人指定）；用户推送远程 |
 | [faqs/watch-unreliable-on-network-drive.md](./faqs/watch-unreliable-on-network-drive.md) | 网络盘监听不可靠时靠定时兜底 |

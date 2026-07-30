@@ -75,6 +75,8 @@ def test_build_catalog_atomic_and_skip(tmp_path: Path) -> None:
     result = build_catalog(root, out, trigger="test")
     assert result.written == 1
     assert result.skipped == 1
+    assert result.skipped_invalid == 1
+    assert result.skipped_no_media == 0
     assert result.trigger == "test"
     assert out.is_file()
     assert not out.with_suffix(out.suffix + ".tmp").exists()
@@ -85,6 +87,58 @@ def test_build_catalog_atomic_and_skip(tmp_path: Path) -> None:
     assert row["stem"] == "one"
     assert row["media_guess"] == "one.mp4"
     assert row["schema_version"] == "1"
+
+
+def test_build_skips_orphan_tags_without_media(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(root / tags_filename_for_stem("orphan"), SAMPLE_TAGS)
+    # 白名单外扩展名视为无原媒体
+    (root / "orphan.avi").write_bytes(b"x")
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 0
+    assert result.skipped == 1
+    assert result.skipped_no_media == 1
+    assert result.skipped_invalid == 0
+    assert out.is_file()
+    assert out.read_text(encoding="utf-8").strip() == ""
+    assert any("no media" in e for e in result.errors)
+
+
+def test_build_writes_when_media_present(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(root / tags_filename_for_stem("clip"), SAMPLE_TAGS)
+    (root / "clip.mp4").write_bytes(b"x")
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 1
+    assert result.skipped == 0
+    row = json.loads(out.read_text(encoding="utf-8").strip())
+    assert row["stem"] == "clip"
+    assert row["media_guess"] == "clip.mp4"
+
+
+def test_build_removes_row_after_media_deleted(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(root / tags_filename_for_stem("gone"), SAMPLE_TAGS)
+    media = root / "gone.mp4"
+    media.write_bytes(b"x")
+    out = root / CATALOG_FILENAME
+
+    first = build_catalog(root, out, trigger="test")
+    assert first.written == 1
+    assert "gone" in out.read_text(encoding="utf-8")
+
+    media.unlink()
+    second = build_catalog(root, out, trigger="test")
+    assert second.written == 0
+    assert second.skipped_no_media == 1
+    assert "gone" not in out.read_text(encoding="utf-8")
 
 
 def test_load_legacy_meta_null(tmp_path: Path) -> None:

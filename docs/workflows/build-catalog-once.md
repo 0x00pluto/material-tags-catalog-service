@@ -2,6 +2,8 @@
 
 扫描素材库根目录下的 `*.material-tags.json`，原子写出 `material-tags-catalog.jsonl`。
 
+与常驻服务的 watch / 定时 / HTTP rebuild **共用** `build_catalog`：无白名单原媒体的标签不入索引（详见契约「入索引条件」）。
+
 ## 入口
 
 ```bash
@@ -32,8 +34,8 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\build.py --root D:\m
 
 ## 产物
 
-- JSONL：字段见 [`../contracts/material-tags-catalog.md`](../contracts/material-tags-catalog.md)
-- stderr：`written=` / `skipped=` / `duration_ms=`
+- JSONL：字段见 [`../contracts/material-tags-catalog.md`](../contracts/material-tags-catalog.md)；正常行带非空 `media_guess`
+- stderr：`written=` / `skipped=` / `skipped_no_media=` / `skipped_invalid=` / `duration_ms=`
 - 有 skip 时退出码 1（整次仍写出合法行）
 
 ## 失败排查
@@ -41,8 +43,9 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\build.py --root D:\m
 | 现象 | 处理 |
 |---|---|
 | 缺少 `--root` | 必须传入素材库路径 |
-| `written=0` | 检查 root 下是否有 `*.material-tags.json` |
-| stderr `skip ...` | 单条缺字段或损坏；修好后重跑 |
+| `written=0` | 检查 root 下是否有 `*.material-tags.json`，且同目录有白名单媒体 |
+| stderr `skip …: no media` | 仅有标签无原媒体；补媒体或清理残留标签后重跑 |
+| stderr `skip …`（其它） | 单条缺字段或损坏；修好后重跑 |
 
 ## 测试
 

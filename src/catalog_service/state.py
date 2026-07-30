@@ -19,6 +19,8 @@ class AppState:
             "trigger": result.trigger,
             "written": result.written,
             "skipped": result.skipped,
+            "skipped_no_media": result.skipped_no_media,
+            "skipped_invalid": result.skipped_invalid,
             "duration_ms": result.duration_ms,
             "at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
             "errors": list(result.errors),
