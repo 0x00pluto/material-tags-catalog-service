@@ -43,7 +43,7 @@ Windows：`.venv\Scripts\python.exe scripts\catalog_service\build.py --root D:\m
 | 现象 | 处理 |
 |---|---|
 | 缺少 `--root` | 必须传入素材库路径 |
-| `written=0` | 检查 root 下是否有 `*.material-tags.json`，且同目录有白名单媒体 |
+| `written=0` | 检查 root 下是否有 `*.material-tags.json`，且同目录（或 `.material_index` 的直接父目录）有白名单媒体 |
 | stderr `skip …: no media` | 仅有标签无原媒体；补媒体或清理残留标签后重跑 |
 | stderr `skip …`（其它） | 单条缺字段或损坏；修好后重跑 |
 

@@ -15,7 +15,10 @@
 ## 入索引条件
 
 - 标签 JSON 解析与必填字段校验通过；
-- **且** `guess_media_path` 命中同目录、同 stem、白名单扩展名的原媒体文件。
+- **且** `guess_media_path` 命中同 stem、白名单扩展名的原媒体文件：
+  1. **先**在标签同目录查找；
+  2. 未命中且标签位于名为 `.material_index` 的目录时，再查其**直接父目录**；
+  3. 其它情况不上翻（目录名须精确匹配 `.material_index`）。
 
 **无原媒体不入索引**：仅有标签、猜不到白名单媒体时，该条 **不写** JSONL 行，计入 `skipped`（`skipped_no_media`），并打 warning 日志。坏 JSON / 校验失败计入 `skipped_invalid`。CLI、watch、定时重建共用同一 `build_catalog`。
 
@@ -27,7 +30,7 @@
 |---|---|---|
 | `stem` | string | 素材 stem |
 | `tags_path` | string | 相对 root 的标签路径（posix） |
-| `media_guess` | string \| null | 同目录同 stem 媒体相对路径；**正常新写入行应非空**；历史/异常快照仍可能为 null |
+| `media_guess` | string \| null | 相对 root 的原媒体路径（同目录，或 `.material_index` 布局下的直接父目录）；**正常新写入行应非空**；历史/异常快照仍可能为 null |
 | `schema_version` | string \| null | 标签结构版本 |
 | `generated_at` | string \| null | ISO 8601 |
 | `title` | string | 标题 |
