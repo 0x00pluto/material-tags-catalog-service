@@ -2,7 +2,7 @@
 
 | 路径 | 摘要 |
 |---|---|
-| [contracts/material-tags-catalog.md](./contracts/material-tags-catalog.md) | JSONL / 标签契约与媒体白名单；v2 可选透传 width/height/duration_s/aspect_ratio/orientation；`.material_index` 可父目录猜媒体；`SCAN_EXCLUDE_DIR_NAMES` 任意深度排除；合法 orphan 默认 purge；HTTP search 只读现有行，可选 `path_prefix` 仅过滤 `tags_path` |
+| [contracts/material-tags-catalog.md](./contracts/material-tags-catalog.md) | JSONL / 标签契约与媒体白名单（含 `.webp`）；v2 可选透传 width/height/duration_s/aspect_ratio/orientation；`.material_index` 可父目录猜媒体；`SCAN_EXCLUDE_DIR_NAMES` 任意深度排除；合法 orphan 默认 purge；HTTP search 只读现有行，可选 `path_prefix` 仅过滤 `tags_path` |
 | [workflows/build-catalog-once.md](./workflows/build-catalog-once.md) | 一次性 CLI 合并 catalog（与常驻共用写侧过滤） |
 | [workflows/serve-catalog-service.md](./workflows/serve-catalog-service.md) | 常驻：watch + 定时 + FastAPI；search 支持可选 `path_prefix`（目录边界 / 多值 OR）；开发一键 `dev-serve.sh` / `dev-test.sh` |
 | [workflows/portable-dist-ci.md](./workflows/portable-dist-ci.md) | Win/Mac 便携包：CI 打 tag 发 Release、一键升级脚本、同事三步用法 |

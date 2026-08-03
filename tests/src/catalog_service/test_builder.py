@@ -121,6 +121,30 @@ def test_build_skips_material_index_without_parent_media(tmp_path: Path) -> None
     assert not tags.exists()
 
 
+def test_build_material_index_parent_webp_kept(tmp_path: Path) -> None:
+    """父目录 .webp 在白名单内：入索引且不 purge（现场误删回归）。"""
+    root = tmp_path / "lib"
+    tagged = root / "蜜璃的素材酷"
+    stem = "redmi-note-8-4914990_640"
+    tags = tagged / MATERIAL_INDEX_DIR / tags_filename_for_stem(stem)
+    _write_tags(tags, SAMPLE_TAGS)
+    media = tagged / f"{stem}.webp"
+    media.write_bytes(b"webp")
+
+    assert guess_media_path(tags) == media
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 1
+    assert result.skipped_no_media == 0
+    assert result.purged == 0
+    assert tags.is_file()
+    row = json.loads(out.read_text(encoding="utf-8").strip().splitlines()[0])
+    assert row["stem"] == stem
+    assert row["media_guess"] == f"蜜璃的素材酷/{stem}.webp"
+    assert MATERIAL_INDEX_DIR in row["tags_path"]
+
+
 def test_build_mixed_layouts_in_one_root(tmp_path: Path) -> None:
     root = tmp_path / "lib"
     root.mkdir()
