@@ -2,6 +2,8 @@
 
 本 **Material Tags Catalog Service** 的 Agent / 大模型检索手册。读完即可用 **curl** 调本实例的 `GET /v1/catalog/search`，按需自拼下载链，并按模板回复用户。
 
+**主路径是本文 HTTP 一二三**（无技能依赖）。本机 Cursor / 互远技能库环境可另装可选技能做渐进披露，见文末 §11。
+
 **用 HTTP 直接读本文**（推荐分享链接；正文里的地址已按本实例渲染）：
 
 ```bash
@@ -273,6 +275,24 @@ curl -s --get '{{api_base}}/v1/catalog/search' \
 - 只有标题超链接、省略或截断 `description`
 - 列出 keywords，或根据描述「猜」横竖屏/时长
 - 编造不存在的 `download_url`
+
+## 11. 可选：安装技能（渐进披露）
+
+本文 **不依赖** 外部技能：任意能访问本实例的模型，按 §1–§10 用 curl 即可完成检索与回复。
+
+若本机已接入互远技能库（Cursor / Claude 等），可安装配套技能，由 Agent **按意图触发**再读 `SKILL.md` / 跑 CLI，避免把整份手册常驻塞进上下文：
+
+```bash
+huyuan-ai-cli huyuan-skill install huyuan-ai-media-resource-finder-master
+```
+
+| 情况 | 怎么做 |
+|------|--------|
+| 已安装该技能 | 用户说「搜内网素材 / 找拍摄下载链接」等时优先走技能（配置 → `search.mjs` → 模板）；行为应与本文一致（先 `path_prefix` 再 `q`、勿 rebuild、回复模板硬约束） |
+| 未安装 / 非本机 / 无 CLI | **继续按本文** HTTP 一二三执行；不要因为缺技能而停住 |
+| 技能与本文步骤冲突 | **以本文（本服务 playbook）为准**；技能仅为可选快捷封装 |
+
+首次安装后通常还需初始化本机配置（`api_base` / `file_base`）；以技能包内 `instructions/init.md` 为准。`api_base` 应对准**本实例**（本文注入的值），勿写死过期内网地址。
 
 ## 相关文档
 

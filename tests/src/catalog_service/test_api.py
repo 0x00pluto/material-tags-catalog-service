@@ -352,8 +352,9 @@ def test_playbook_http_resolves_repo_default(tmp_path: Path) -> None:
     assert "LLM Playbook" in resp.text
     assert "http://testserver/v1/catalog/search" in resp.text
     assert "{{api_base}}" not in resp.text
-    assert "huyuan-ai" not in resp.text
+    # 可选技能安装指针可出现；禁止写死技能默认盘前缀 / 内网 IP
     assert "huanyuan-share" not in resp.text
+    assert "192.168.0.8" not in resp.text
     schema = client.get("/openapi.json").json()
     assert "/v1/docs/llm-media-search-playbook" in schema["paths"]
 

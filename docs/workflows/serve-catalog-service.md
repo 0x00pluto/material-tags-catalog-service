@@ -96,7 +96,7 @@ OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json
 
 ### Agent 两段式找素材（推荐）
 
-面向「搜素材并给用户下载链接 + 固定回复格式」的完整一二三，见 **[llm-media-search-playbook.md](./llm-media-search-playbook.md)**，或 HTTP：`GET /v1/docs/llm-media-search-playbook`（返回已按本实例渲染的 Markdown：`api_base` = 本次请求根地址；可选 ENV `FILE_BROWSER_BASE` → `file_base`）。
+面向「搜素材并给用户下载链接 + 固定回复格式」的完整一二三，见 **[llm-media-search-playbook.md](./llm-media-search-playbook.md)**，或 HTTP：`GET /v1/docs/llm-media-search-playbook`（返回已按本实例渲染的 Markdown：`api_base` = 本次请求根地址；可选 ENV `FILE_BROWSER_BASE` → `file_base`）。本机可另装可选技能（见 playbook §11）；未装则只跟 playbook curl 路径。
 
 1. **先定项目范围**：从用户口述或盘面目录得到相对 `CATALOG_ROOT` 的路径（如 `蜜梨的素材库`），写入一个或多个 `path_prefix`（多项目并查时重复该参数）。
 2. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄）。`q` 仍必填；不可只靠路径浏览。

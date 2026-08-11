@@ -113,7 +113,7 @@ accepted_scope: R0
 | R1-01 | `GET /v1/docs/llm-media-search-playbook` 返回 200 + `text/markdown` | curl |
 | R1-02 | 正文 `api_base` / curl 目标与请求 host:port 一致（如 PORT=11777） | curl 对照 |
 | R1-03 | 设 `FILE_BROWSER_BASE` 时注入该值；未设时标明未配置 | 环境对照 |
-| R1-04 | 正文无外部技能名、无写死互远默认盘前缀 | 通读 / rg |
+| R1-04 | 正文不写死互远默认盘前缀 / 内网 IP；主路径仍为纯 HTTP；允许文末「可选装技能」指针（含安装命令） | 通读 / rg（禁 `huanyuan-share`、禁写死 `192.168.0.8`） |
 | R1-05 | OpenAPI 登记该路径；search 回归可用 | openapi + curl |
 
 ## 7. 依赖与风险
