@@ -62,3 +62,4 @@
 - **不**新增、不修改 JSONL 行字段；`items[]` 与上表一致。
 - 可选重复 query 参数 `path_prefix`：仅按行内 `tags_path` 做目录边界前缀过滤（多值 OR）；不改关键词 AND / 加权语义。
 - 查询参数、匹配规则（AND 子串、casefold、加权排序、路径关）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。
+- 大模型找素材（curl + 拼下载链 + 回复模板）：[workflows/llm-media-search-playbook.md](../workflows/llm-media-search-playbook.md)；常驻 HTTP：`GET /v1/docs/llm-media-search-playbook`（`text/markdown`，按本实例注入 `api_base`，可选 `FILE_BROWSER_BASE` → `file_base`）。

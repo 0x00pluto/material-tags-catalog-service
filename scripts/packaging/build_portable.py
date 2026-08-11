@@ -164,6 +164,11 @@ def build(out_root: Path) -> Path:
     shutil.copy2(ROOT / ".env.example", stage / ".env.example")
     shutil.copy2(ROOT / ".env.example", stage / "catalog-service" / ".env.example")
     shutil.copy2(ASSETS / "README.txt", stage / "README.txt")
+    # frozen serve 旁挂 playbook，供 GET /v1/docs/llm-media-search-playbook
+    playbook_src = ROOT / "docs" / "workflows" / "llm-media-search-playbook.md"
+    playbook_dest_dir = stage / "catalog-service" / "docs" / "workflows"
+    playbook_dest_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(playbook_src, playbook_dest_dir / playbook_src.name)
     _write_start_scripts(stage, os_name)
 
     zip_path = out_root / f"{package_name}.zip"

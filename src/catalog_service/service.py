@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -62,12 +63,6 @@ def run_serve(settings: Settings) -> None:
         state.record_build(result)
         return result
 
-    # 启动先建一轮，保证 HTTP 可读
-    try:
-        build_lock.request("startup", run_build)
-    except Exception:  # noqa: BLE001
-        logger.exception("startup build failed; continuing")
-
     watcher: CatalogWatcher | None = None
     scheduler: IntervalScheduler | None = None
 
@@ -81,6 +76,7 @@ def run_serve(settings: Settings) -> None:
             debounce_sec=settings.watch_debounce_sec,
             on_change=on_watch,
             exclude_dir_names=exclude_set,
+            startup_quiet_sec=settings.watch_startup_quiet_sec,
         )
 
     @asynccontextmanager
@@ -98,6 +94,19 @@ def run_serve(settings: Settings) -> None:
                 on_tick,
             )
             await scheduler.start()
+
+        def startup_build() -> None:
+            try:
+                build_lock.request("startup", run_build)
+            except Exception:  # noqa: BLE001
+                logger.exception("startup build failed; continuing")
+
+        threading.Thread(
+            target=startup_build,
+            name="startup-build",
+            daemon=True,
+        ).start()
+
         yield
         if watcher is not None:
             watcher.stop()
@@ -112,6 +121,7 @@ def run_serve(settings: Settings) -> None:
         lifespan=lifespan,
         exclude_dir_names=exclude_set,
         purge_orphan_tags=purge_orphan,
+        file_browser_base=settings.file_browser_base,
     )
 
     logger.info(

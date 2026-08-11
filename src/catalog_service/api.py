@@ -6,12 +6,16 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.catalog_service.build_lock import BuildLock
 from src.catalog_service.builder import build_catalog
+from src.catalog_service.playbook_docs import (
+    render_playbook,
+    resolve_playbook_markdown_path,
+)
 from src.catalog_service.search import (
     PATH_PREFIX_MAX,
     PathPrefixError,
@@ -68,6 +72,8 @@ def create_app(
     lifespan: Callable | None = None,
     exclude_dir_names: frozenset[str] | None = None,
     purge_orphan_tags: bool = True,
+    playbook_path: Path | None = None,
+    file_browser_base: str | None = None,
 ) -> FastAPI:
     kwargs: dict[str, Any] = {
         "title": "Material Tags Catalog Service",
@@ -224,6 +230,43 @@ def create_app(
         return JSONResponse(
             status_code=200,
             content={"status": "ok", **result.to_dict()},
+        )
+
+    @app.get(
+        "/v1/docs/llm-media-search-playbook",
+        summary="LLM 媒体检索 playbook（Markdown）",
+        tags=["docs"],
+        description=(
+            "返回本服务 Agent 检索手册（text/markdown）。"
+            "按本次请求的 base URL 注入 api_base；可选 FILE_BROWSER_BASE 注入 file_base。"
+        ),
+        response_class=Response,
+        responses={
+            200: {
+                "content": {"text/markdown": {"schema": {"type": "string"}}},
+                "description": "playbook Markdown（已按本实例渲染）",
+            },
+            404: {"description": "playbook 文件未打包或不存在"},
+        },
+    )
+    def get_llm_media_search_playbook(request: Request) -> Response:
+        path = (
+            playbook_path
+            if playbook_path is not None
+            else resolve_playbook_markdown_path()
+        )
+        if path is None or not path.is_file():
+            raise HTTPException(status_code=404, detail="playbook not found")
+        template = path.read_text(encoding="utf-8")
+        api_base = str(request.base_url).rstrip("/")
+        body = render_playbook(
+            template,
+            api_base=api_base,
+            file_base=file_browser_base,
+        )
+        return Response(
+            content=body,
+            media_type="text/markdown; charset=utf-8",
         )
 
     return app

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -30,14 +31,27 @@ class _DebouncedTagsHandler(FileSystemEventHandler):
         *,
         root: Path,
         exclude_dir_names: frozenset[str],
+        startup_quiet_sec: float = 0.0,
     ) -> None:
         super().__init__()
         self._debounce_sec = debounce_sec
         self._on_change = on_change
         self._root = root
         self._exclude_dir_names = exclude_dir_names
+        self._startup_quiet_sec = startup_quiet_sec
+        self._quiet_until: float = 0.0
         self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
+
+    def begin_quiet_window(self) -> None:
+        """watcher start 时调用：开启启动静默窗。"""
+        if self._startup_quiet_sec <= 0:
+            self._quiet_until = 0.0
+            return
+        self._quiet_until = time.monotonic() + self._startup_quiet_sec
+
+    def _in_quiet_window(self) -> bool:
+        return self._quiet_until > 0 and time.monotonic() < self._quiet_until
 
     def _is_relevant_tags_path(self, path: str) -> bool:
         if not _is_tags_event(path):
@@ -47,6 +61,8 @@ class _DebouncedTagsHandler(FileSystemEventHandler):
         return True
 
     def _schedule(self) -> None:
+        if self._in_quiet_window():
+            return
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()
@@ -100,8 +116,10 @@ class CatalogWatcher:
         debounce_sec: float,
         on_change: Callable[[], None],
         exclude_dir_names: frozenset[str] | Sequence[str] | None = None,
+        startup_quiet_sec: float = 10.0,
     ) -> None:
         self._root = root
+        self._startup_quiet_sec = startup_quiet_sec
         exclude_set = (
             exclude_dir_names
             if isinstance(exclude_dir_names, frozenset)
@@ -112,14 +130,20 @@ class CatalogWatcher:
             on_change,
             root=root,
             exclude_dir_names=exclude_set,
+            startup_quiet_sec=startup_quiet_sec,
         )
         self._observer = Observer()
 
     def start(self) -> None:
+        self._handler.begin_quiet_window()
         self._observer.schedule(self._handler, str(self._root), recursive=True)
         self._observer.daemon = True
         self._observer.start()
-        logger.info("watcher started root=%s", self._root)
+        logger.info(
+            "watcher started root=%s quiet_sec=%s",
+            self._root,
+            self._startup_quiet_sec,
+        )
 
     def stop(self) -> None:
         self._handler.cancel()

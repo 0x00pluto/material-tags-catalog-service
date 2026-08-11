@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -476,3 +477,47 @@ def test_iter_respects_exclude(tmp_path: Path) -> None:
     _write_tags(trash, SAMPLE_TAGS)
     found = list(iter_material_tags(tmp_path, exclude_dir_names="000-回收站"))
     assert found == [good]
+
+
+def test_dir_listing_cache_matches_uncached_guess(tmp_path: Path) -> None:
+    """同目录多标签：有 cache 时命中与无 cache 一致。"""
+    for stem in ("a", "b", "c"):
+        tags = tmp_path / tags_filename_for_stem(stem)
+        _write_tags(tags, SAMPLE_TAGS)
+        (tmp_path / f"{stem}.mp4").write_bytes(b"x")
+
+    cache: dict = {}
+    for stem in ("a", "b", "c"):
+        tags = tmp_path / tags_filename_for_stem(stem)
+        with_cache = guess_media_path(tags, dir_listing_cache=cache)
+        without = guess_media_path(tags)
+        assert with_cache == without
+        assert with_cache is not None
+        assert with_cache.name == f"{stem}.mp4"
+    assert len(cache) == 1
+
+
+def test_dir_listing_cache_reuses_iterdir(tmp_path: Path) -> None:
+    """同目录多次 guess：有 cache 时 Path.iterdir 只调用一次。"""
+    for stem in ("a", "b"):
+        tags = tmp_path / tags_filename_for_stem(stem)
+        _write_tags(tags, SAMPLE_TAGS)
+        (tmp_path / f"{stem}.mp4").write_bytes(b"x")
+
+    cache: dict = {}
+    real_iterdir = Path.iterdir
+    calls: list[Path] = []
+
+    def counting_iterdir(self: Path):
+        calls.append(self)
+        return real_iterdir(self)
+
+    with patch.object(Path, "iterdir", counting_iterdir):
+        for stem in ("a", "b"):
+            tags = tmp_path / tags_filename_for_stem(stem)
+            assert guess_media_path(tags, dir_listing_cache=cache) is not None
+
+    # 两次 guess 同一目录，只应 listing 一次（is_dir 等另计；只数 resolve 后的该目录）
+    target = tmp_path.resolve()
+    listing_calls = [p for p in calls if p.resolve() == target]
+    assert len(listing_calls) == 1

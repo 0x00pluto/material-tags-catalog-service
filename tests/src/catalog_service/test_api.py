@@ -281,3 +281,124 @@ def test_openapi_includes_search(tmp_path: Path) -> None:
     assert {"q", "limit", "offset", "path_prefix"} <= params
     props = schema["components"]["schemas"]["CatalogSearchResponse"]["properties"]
     assert "path_prefixes" in props
+
+
+def test_playbook_http_ok(tmp_path: Path) -> None:
+    root, out = _setup_lib(tmp_path)
+    playbook = tmp_path / "playbook.md"
+    playbook.write_text(
+        "# hello\napi={{api_base}}\nfile={{file_base}}\n",
+        encoding="utf-8",
+    )
+    app = create_app(
+        root=root,
+        out=out,
+        build_lock=BuildLock(),
+        state=AppState(),
+        playbook_path=playbook,
+        file_browser_base="http://files.example/share",
+    )
+    client = TestClient(app)
+    resp = client.get("/v1/docs/llm-media-search-playbook")
+    assert resp.status_code == 200
+    assert "text/markdown" in resp.headers["content-type"]
+    assert "api=http://testserver" in resp.text
+    assert "file=http://files.example/share" in resp.text
+    assert "{{api_base}}" not in resp.text
+
+
+def test_playbook_http_404(tmp_path: Path) -> None:
+    root, out = _setup_lib(tmp_path)
+    missing = tmp_path / "no-such.md"
+    app = create_app(
+        root=root,
+        out=out,
+        build_lock=BuildLock(),
+        state=AppState(),
+        playbook_path=missing,
+    )
+    client = TestClient(app)
+    resp = client.get("/v1/docs/llm-media-search-playbook")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "playbook not found"
+
+
+def test_playbook_http_file_base_unset(tmp_path: Path) -> None:
+    root, out = _setup_lib(tmp_path)
+    playbook = tmp_path / "playbook.md"
+    playbook.write_text("fb={{file_base}}\n", encoding="utf-8")
+    app = create_app(
+        root=root,
+        out=out,
+        build_lock=BuildLock(),
+        state=AppState(),
+        playbook_path=playbook,
+        file_browser_base=None,
+    )
+    client = TestClient(app)
+    resp = client.get("/v1/docs/llm-media-search-playbook")
+    assert resp.status_code == 200
+    assert "未配置 FILE_BROWSER_BASE" in resp.text
+    assert "huanyuan-share" not in resp.text
+    assert "192.168.0.8:8787" not in resp.text
+
+
+def test_playbook_http_resolves_repo_default(tmp_path: Path) -> None:
+    """未注入路径时，从仓库 docs/ 解析真实 playbook 并渲染。"""
+    client = _client_with_catalog(tmp_path)
+    resp = client.get("/v1/docs/llm-media-search-playbook")
+    assert resp.status_code == 200
+    assert "text/markdown" in resp.headers["content-type"]
+    assert "LLM Playbook" in resp.text
+    assert "http://testserver/v1/catalog/search" in resp.text
+    assert "{{api_base}}" not in resp.text
+    assert "huyuan-ai" not in resp.text
+    assert "huanyuan-share" not in resp.text
+    schema = client.get("/openapi.json").json()
+    assert "/v1/docs/llm-media-search-playbook" in schema["paths"]
+
+
+def test_resolve_playbook_markdown_path() -> None:
+    from src.catalog_service.playbook_docs import resolve_playbook_markdown_path
+
+    path = resolve_playbook_markdown_path()
+    assert path is not None
+    assert path.is_file()
+    assert path.name == "llm-media-search-playbook.md"
+
+
+def test_render_playbook() -> None:
+    from src.catalog_service.playbook_docs import FILE_BASE_UNSET, render_playbook
+
+    out = render_playbook(
+        "a={{api_base}} f={{file_base}}",
+        api_base="http://localhost:11777/",
+        file_base=None,
+    )
+    assert out == f"a=http://localhost:11777 f={FILE_BASE_UNSET}"
+    out2 = render_playbook(
+        "{{api_base}}|{{file_base}}",
+        api_base="http://x:1",
+        file_base="http://fb/share/",
+    )
+    assert out2 == "http://x:1|http://fb/share"
+
+
+def test_normalize_file_browser_base_and_settings(tmp_path: Path) -> None:
+    from src.catalog_service.config import Settings
+    from src.catalog_service.playbook_docs import normalize_file_browser_base
+
+    assert normalize_file_browser_base(None) is None
+    assert normalize_file_browser_base("  ") is None
+    assert normalize_file_browser_base("http://fb/share/") == "http://fb/share"
+    assert normalize_file_browser_base("http://fb/share///") == "http://fb/share"
+
+    root = tmp_path / "media"
+    root.mkdir()
+    settings = Settings(
+        CATALOG_ROOT=root,
+        FILE_BROWSER_BASE=" http://fb.example/files/ ",
+    )
+    assert settings.file_browser_base == "http://fb.example/files"
+    settings_empty = Settings(CATALOG_ROOT=root, FILE_BROWSER_BASE="  ")
+    assert settings_empty.file_browser_base is None

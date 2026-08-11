@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Iterator
 
 from src.catalog_service.config import parse_exclude_dir_names
-from src.catalog_service.media_guess import guess_media_path
+from src.catalog_service.media_guess import DirListingCache, guess_media_path
 from src.catalog_service.models import (
     CATALOG_FILENAME,
     SUFFIX,
@@ -69,11 +69,16 @@ def iter_material_tags(
         yield path
 
 
-def catalog_record(tags_path: Path, root: Path) -> CatalogRecord:
+def catalog_record(
+    tags_path: Path,
+    root: Path,
+    *,
+    dir_listing_cache: DirListingCache | None = None,
+) -> CatalogRecord:
     tags = load_material_tags(tags_path)
     stem = stem_from_tags_path(tags_path)
     rel = tags_path.resolve().relative_to(root.resolve()).as_posix()
-    media = guess_media_path(tags_path)
+    media = guess_media_path(tags_path, dir_listing_cache=dir_listing_cache)
     media_rel = (
         media.resolve().relative_to(root.resolve()).as_posix() if media else None
     )
@@ -128,6 +133,8 @@ def build_catalog(
     skipped_excluded = 0
     purged = 0
     errors: list[str] = []
+    # 仅本轮 build 内复用目录 listing，不跨 build 共享
+    dir_listing_cache: DirListingCache = {}
 
     try:
         with tmp_path.open("w", encoding="utf-8") as fh:
@@ -142,7 +149,11 @@ def build_catalog(
                     logger.info("skip excluded %s", tags_path)
                     continue
                 try:
-                    record = catalog_record(tags_path, root_path)
+                    record = catalog_record(
+                        tags_path,
+                        root_path,
+                        dir_listing_cache=dir_listing_cache,
+                    )
                 except Exception as exc:  # noqa: BLE001 — 单条容错
                     skipped_invalid += 1
                     msg = f"skip {tags_path}: {exc}"
