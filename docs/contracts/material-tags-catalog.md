@@ -47,7 +47,7 @@
 
 ## 媒体扩展名白名单
 
-按顺序优先：`.mp4 .mov .mkv .webm .jpg .jpeg .png .webp .wav .mp3`
+按顺序优先：`.mp4 .mov .mkv .webm .jpg .jpeg .png .webp .gif .wav .mp3`
 
 默认输出：`<root>/material-tags-catalog.jsonl`（可配置覆盖）。
 

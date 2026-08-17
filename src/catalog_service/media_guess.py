@@ -17,6 +17,7 @@ MEDIA_EXTENSIONS = (
     ".jpeg",
     ".png",
     ".webp",
+    ".gif",
     ".wav",
     ".mp3",
 )

@@ -67,4 +67,4 @@ uv venv && uv pip install -r requirements.txt
 
 ## 团队 Cursor 命令
 
-本地命令见 [`.cursor/commands/team/`](./.cursor/commands/team/)（`/team:product-manager`、`/team:feature-dev`、`/team:prd-accept`、`/team:python-engineer`、`/team:test-enginer`）。新功能自动闭环（人确认 PRD 后 S1→S2→S3，禁发版）：命令内嵌于 [`.cursor/commands/team/feature-dev.md`](./.cursor/commands/team/feature-dev.md)（索引见 [`docs/workflows/feature-dev-loop.md`](./docs/workflows/feature-dev-loop.md)）。母版维护于 Obsidian Vibecoding「团队成员」，安装 SOP 见其使用说明。
+本地命令见 [`.cursor/commands/team/`](./.cursor/commands/team/)（`/team:product-manager`、`/team:feature-dev`、`/team:prd-accept`、`/team:python-engineer`、`/team:test-enginer`）。**08 自主交付工程师**（人确认 PRD 后本人跑 S1→S2→S3，禁发版）：本仓安装稿 [`.cursor/commands/team/feature-dev.md`](./.cursor/commands/team/feature-dev.md)（索引见 [`docs/workflows/feature-dev-loop.md`](./docs/workflows/feature-dev-loop.md)）。母版维护于 Obsidian Vibecoding「团队成员 / 08-自主交付工程师」，安装 SOP 见其使用说明。

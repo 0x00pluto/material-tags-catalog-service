@@ -146,6 +146,30 @@ def test_build_material_index_parent_webp_kept(tmp_path: Path) -> None:
     assert MATERIAL_INDEX_DIR in row["tags_path"]
 
 
+def test_build_material_index_parent_gif_kept(tmp_path: Path) -> None:
+    """父目录 .gif 在白名单内：入索引且不 purge。"""
+    root = tmp_path / "lib"
+    tagged = root / "蜜璃的素材酷"
+    stem = "loop-sticker-640"
+    tags = tagged / MATERIAL_INDEX_DIR / tags_filename_for_stem(stem)
+    _write_tags(tags, SAMPLE_TAGS)
+    media = tagged / f"{stem}.gif"
+    media.write_bytes(b"gif")
+
+    assert guess_media_path(tags) == media
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 1
+    assert result.skipped_no_media == 0
+    assert result.purged == 0
+    assert tags.is_file()
+    row = json.loads(out.read_text(encoding="utf-8").strip().splitlines()[0])
+    assert row["stem"] == stem
+    assert row["media_guess"] == f"蜜璃的素材酷/{stem}.gif"
+    assert MATERIAL_INDEX_DIR in row["tags_path"]
+
+
 def test_build_mixed_layouts_in_one_root(tmp_path: Path) -> None:
     root = tmp_path / "lib"
     root.mkdir()
