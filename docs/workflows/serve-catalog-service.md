@@ -81,16 +81,16 @@ OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json
 
 **匹配与排序（写死）**
 
-- 可检索字段：`title`、`description`、`keywords`（只读现有 JSONL 行，不改契约字段）。
+- 可检索字段：`title`、`description`、`keywords`、`subtitle`（只读现有 JSONL 行）。历史行无 `subtitle` 键视为 `""`；**须成功 rebuild** 后新行才带该键，否则仅口播原话搜不到。
 - 路径关（可选）：仅看 `tags_path`。未设 `path_prefix` 则通过；否则须至少一个前缀满足**目录边界**（`tags_path == prefix` 或以 `prefix/` 开头；字面匹配、不做 casefold）。避免 `项目A` 误伤 `项目A备份`。
 - 非法 `path_prefix`（含 `..`、或以 `/` 开头的绝对路径语义、规范化后超过 20 个）→ **400**；空串丢弃；全丢弃视为未设路径。
-- 多词：**AND**（每个 token 都必须在上述字段的拼接文本中子串命中）。
-- 大小写：对 haystack / needle 做 **casefold**（英文不区分大小写）。
-- 加权（排序用，**响应不返回 score**）：keywords +3 / title +2 / description +1；同一 token 每字段最多计一次；分降序，同分按 `stem` 升序。
+- 多词：**AND**（每个 token 都必须在上述字段中至少一处子串命中）。
+- 大小写：对 haystack / needle 做 **casefold**（英文不区分大小写；含 subtitle）。
+- 加权（排序用，**响应不返回 score**）：keywords +3 / title +2 / description +1 / subtitle +1；同一 token 每字段最多计一次；分降序，同分按 `stem` 升序。
 - 坏行跳过；catalog 文件不存在 → 404（与全量接口一致）。
 - `total_matched`：路径关 ∩ 关键词命中的总数；分页基于该集合。
 
-**响应（200）**：`{ query, tokens, limit, offset, total_matched, path_prefixes, items }`；`path_prefixes` 为规范化后生效列表（未传为 `[]`）；`items[]` 与 [catalog 行契约](../contracts/material-tags-catalog.md) 一致。
+**响应（200）**：`{ query, tokens, limit, offset, total_matched, path_prefixes, items }`；`path_prefixes` 为规范化后生效列表（未传为 `[]`）；`items[]` 与 [catalog 行契约](../contracts/material-tags-catalog.md) 一致，**仅省略 `subtitle`**（不回 `""` 占位；无 `score`）。全量 `GET /v1/catalog` 仍原样流 JSONL（rebuild 后行内含 `subtitle`）。
 
 无命中：`items=[]`，`total_matched=0`，仍 200。
 
@@ -99,7 +99,7 @@ OpenAPI / Swagger：`http://127.0.0.1:8787/docs`（机器可读：`/openapi.json
 面向「搜素材并给用户下载链接 + 固定回复格式」的完整一二三，见 **[llm-media-search-playbook.md](./llm-media-search-playbook.md)**，或 HTTP：`GET /v1/docs/llm-media-search-playbook`（返回已按本实例渲染的 Markdown：`api_base` = 本次请求根地址；可选 ENV `FILE_BROWSER_BASE` → `file_base`）。本机可另装可选技能（见 playbook §11）；未装则只跟 playbook curl 路径。
 
 1. **先定项目范围**：从用户口述或盘面目录得到相对 `CATALOG_ROOT` 的路径（如 `蜜梨的素材库`），写入一个或多个 `path_prefix`（多项目并查时重复该参数）。
-2. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄）。`q` 仍必填；不可只靠路径浏览。
+2. 从用户口语提炼关键词，写入 `q`（可用空格或逗号多词收窄；**口播原话短句也可**）。`q` 仍必填；不可只靠路径浏览。精选时只读 `title` / `description` 等；`items[]` **没有** `subtitle` 全文。
 3. `GET /v1/catalog/search?q=…&path_prefix=…&limit=20`，只读返回的 `items`；核对响应里的 `path_prefixes` 与 `total_matched`。
 4. 精选 1～N 个 `stem`（及 `tags_path` / `media_guess`）；需要下载链时按 playbook 用 `file_base` + 分段编码 `media_guess` 自拼。
 5. 若不满意：改 `path_prefix`、改写 `q`，或增大 `offset` 翻页（数据不变时翻页结果不与上一页重复）。
@@ -121,6 +121,9 @@ curl -s --get 'http://127.0.0.1:8787/v1/catalog/search' \
   --data-urlencode 'q=图' \
   --data-urlencode 'path_prefix=蜜梨的素材库' \
   --data-urlencode 'path_prefix=项目A'
+curl -s --get 'http://127.0.0.1:8787/v1/catalog/search' \
+  --data-urlencode 'q=跑遍了整个武汉' \
+  --data-urlencode 'limit=5'
 curl -s http://127.0.0.1:8787/v1/catalog | head
 curl -s -X POST http://127.0.0.1:8787/v1/catalog/rebuild
 ```

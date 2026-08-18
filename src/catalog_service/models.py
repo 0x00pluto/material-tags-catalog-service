@@ -137,6 +137,13 @@ def _optional_media_meta(
     return meta
 
 
+def _normalize_subtitle(raw: object) -> str:
+    """口播全文：仅保留 string 原样；缺键 / null / 非 string → ""。不 skip。"""
+    if isinstance(raw, str):
+        return raw
+    return ""
+
+
 def load_material_tags(path: Path | str) -> dict[str, Any]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -144,7 +151,8 @@ def load_material_tags(path: Path | str) -> dict[str, Any]:
     content = validate_tags(data)
     meta = _optional_meta(data)
     media_meta = _optional_media_meta(data)
-    return {**content, **meta, **media_meta}
+    subtitle = _normalize_subtitle(data.get("subtitle"))
+    return {**content, **meta, **media_meta, "subtitle": subtitle}
 
 
 @dataclass
@@ -157,6 +165,7 @@ class CatalogRecord:
     title: str
     description: str
     keywords: str
+    subtitle: str = ""
     width: int | None = None
     height: int | None = None
     duration_s: float | None = None

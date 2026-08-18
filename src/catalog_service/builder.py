@@ -91,6 +91,7 @@ def catalog_record(
         title=str(tags["title"]),
         description=str(tags["description"]),
         keywords=str(tags["keywords"]),
+        subtitle=str(tags.get("subtitle") or ""),
         width=tags.get("width"),
         height=tags.get("height"),
         duration_s=tags.get("duration_s"),

@@ -55,7 +55,9 @@ search 参数与匹配语义以 [serve-catalog-service.md](./serve-catalog-servi
 
 - 把自然语言压成**短**关键词；空白或中英文逗号分词；多词 **AND**。
 - 过宽（整句长描述）先收窄再搜。
+- 可用视频里说过的**口播原话短句**当 `q`（匹配 `title` / `description` / `keywords` / `subtitle`）。`items[]` **不含** `subtitle`：回复只用 `title` / `description`，**禁止**假设 items 有逐字稿或引用口播原文。
 - search **不匹配** `stem`：勿用纯镜号如 `C0300` 当唯一关键词。
+- 旧索引 JSONL 可能还没有 `subtitle` 键：仅口播词会 0 命中。须运维成功 **rebuild** 后新行才带键；Agent **禁止**自行 rebuild。
 
 ### ③ curl
 
@@ -78,9 +80,14 @@ curl -s --get '{{api_base}}/v1/catalog/search' \
   --data-urlencode 'path_prefix=项目A' \
   --data-urlencode 'path_prefix=项目B' \
   --data-urlencode 'limit=20'
+
+# 口播原话短句（非访谈长文）；items 仍不含 subtitle
+curl -s --get '{{api_base}}/v1/catalog/search' \
+  --data-urlencode 'q=跑遍了整个武汉' \
+  --data-urlencode 'limit=20'
 ```
 
-**200 响应要点**：`query`、`tokens`、`total_matched`、`path_prefixes`（未传为 `[]`）、`items[]`（与 catalog 行一致）。无命中：`items=[]`，`total_matched=0`，仍 200。
+**200 响应要点**：`query`、`tokens`、`total_matched`、`path_prefixes`（未传为 `[]`）、`items[]`（与 catalog 行一致，**仅省略 `subtitle`**）。无命中：`items=[]`，`total_matched=0`，仍 200。若口播词 0 命中而画面词能命中，先换词；确认上游已写出 v4 字幕后交运维 rebuild，不要自行 `POST .../rebuild`。
 
 参数细节（`limit` 钳制、加权排序、casefold 等）见 [serve-catalog-service.md](./serve-catalog-service.md)。
 
@@ -163,6 +170,7 @@ API 返回原始字段；对用户展示时自行格式化（**禁止根据 desc
 - 画幅 / 时长 / 比例三行始终输出；无值用「未知」——禁止猜测
 - 仅当已拼出真实 `download_url` 时使用 Markdown 链接：`[标题](url)`
 - 禁止编造不存在的 `download_url`
+- 禁止把 search `items` 当成含口播全文；禁止引用或编造逐字稿（`subtitle` 不在响应里）
 
 ## 7. 改写 q / path_prefix 与翻页
 
@@ -275,6 +283,7 @@ curl -s --get '{{api_base}}/v1/catalog/search' \
 - 只有标题超链接、省略或截断 `description`
 - 列出 keywords，或根据描述「猜」横竖屏/时长
 - 编造不存在的 `download_url`
+- 从 search 结果引用或编造口播原文（items 没有 `subtitle`）
 
 ## 11. 可选：安装技能（渐进披露）
 

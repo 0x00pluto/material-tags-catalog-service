@@ -84,6 +84,16 @@ def test_score_and_and_weights() -> None:
     assert score_record(["玄关", "衣帽架"], "玄关", "描述", "玄关") is None
     # casefold
     assert score_record(["Door"], "title", "desc", "front door") == 3
+    # 仅 subtitle → 1；低于仅 keywords（3）
+    assert score_record(["武汉"], "标题", "描述", "其他", "跑遍了整个武汉") == 1
+    assert (
+        score_record(["武汉"], "标题", "描述", "其他", "跑遍了整个武汉")
+        < score_record(["门"], "客厅", "描述", "大门,玄关")
+    )
+    # 同 token 落在 description + subtitle 可叠加
+    assert score_record(["武汉"], "标题", "去了武汉", "其他", "跑遍了整个武汉") == 2
+    # subtitle casefold
+    assert score_record(["WUHAN"], "t", "d", "k", "visited Wuhan") == 1
 
 
 def _write_catalog(path: Path, rows: list[dict]) -> None:
@@ -323,3 +333,82 @@ def test_search_legacy_row_media_meta_null(tmp_path: Path) -> None:
     assert item["duration_s"] is None
     assert item["aspect_ratio"] is None
     assert item["orientation"] is None
+    assert "subtitle" not in item
+
+
+def test_search_subtitle_only_hit(tmp_path: Path) -> None:
+    rows = [
+        {
+            "stem": "talk",
+            "tags_path": "talk.material-tags.json",
+            "title": "访谈成片",
+            "description": "受访者谈城市见闻",
+            "keywords": "访谈, 成片",
+            "subtitle": "我跑遍了整个武汉，把街头巷尾都走了一遍",
+        },
+        {
+            "stem": "other",
+            "tags_path": "other.material-tags.json",
+            "title": "风景",
+            "description": "城市空镜",
+            "keywords": "空镜",
+            "subtitle": "",
+        },
+    ]
+    path = tmp_path / "catalog.jsonl"
+    _write_catalog(path, rows)
+    result = search_catalog(path, ["跑遍了整个武汉"], limit=10, offset=0)
+    assert result.total_matched == 1
+    assert result.items[0]["stem"] == "talk"
+    assert "subtitle" not in result.items[0]
+
+
+def test_search_and_title_plus_subtitle(tmp_path: Path) -> None:
+    rows = [
+        {
+            "stem": "both",
+            "tags_path": "both.material-tags.json",
+            "title": "访谈成片",
+            "description": "要点",
+            "keywords": "口播",
+            "subtitle": "跑遍了整个武汉",
+        },
+        {
+            "stem": "title_only",
+            "tags_path": "title_only.material-tags.json",
+            "title": "访谈成片",
+            "description": "要点",
+            "keywords": "口播",
+            "subtitle": "",
+        },
+        {
+            "stem": "sub_only",
+            "tags_path": "sub_only.material-tags.json",
+            "title": "别的标题",
+            "description": "要点",
+            "keywords": "口播",
+            "subtitle": "跑遍了整个武汉",
+        },
+    ]
+    path = tmp_path / "catalog.jsonl"
+    _write_catalog(path, rows)
+    result = search_catalog(path, ["访谈成片", "跑遍了整个武汉"], limit=10, offset=0)
+    assert result.total_matched == 1
+    assert result.items[0]["stem"] == "both"
+
+
+def test_search_legacy_row_missing_subtitle_key(tmp_path: Path) -> None:
+    row = {
+        "stem": "legacy",
+        "tags_path": "legacy.material-tags.json",
+        "title": "访谈",
+        "description": "要点",
+        "keywords": "口播",
+    }
+    path = tmp_path / "catalog.jsonl"
+    path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    miss = search_catalog(path, ["跑遍了整个武汉"], limit=5, offset=0)
+    assert miss.total_matched == 0
+    hit = search_catalog(path, ["访谈"], limit=5, offset=0)
+    assert hit.total_matched == 1
+    assert "subtitle" not in hit.items[0]

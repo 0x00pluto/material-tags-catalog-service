@@ -10,6 +10,7 @@
 - 必填：`title`、`description`、`keywords`
 - 可选：`schema_version`、`generated_at`
 - 可选（schema v2 媒体元数据）：`width`、`height`、`duration_s`、`aspect_ratio`、`orientation`；缺省或坏类型写入 catalog 时为 `null`，不导致整条跳过
+- 可选（schema v4 口播全文）：`subtitle`；缺键 / `null` / 非 string → 写入 `""`，**不** skip、**不**列为必填
 
 命名：`<stem>.material-tags.json`。
 
@@ -39,6 +40,7 @@
 | `title` | string | 标题 |
 | `description` | string | 描述 |
 | `keywords` | string | 关键词 |
+| `subtitle` | string | 口播全文（STT）；静图/未挂字幕或旧标签缺键 rebuild 后为 `""`（不是 `null`） |
 | `width` | int \| null | 像素宽（v2 可选） |
 | `height` | int \| null | 像素高（v2 可选） |
 | `duration_s` | number \| null | 时长秒（v2 可选） |
@@ -53,13 +55,13 @@
 
 写入策略：先写临时文件再 `os.replace`，避免读到半截。
 
-`BuildResult` / `last_build`（meta）：`skipped` = `skipped_no_media` + `skipped_invalid`；另含 `skipped_excluded`（排除目录命中，不计入 `skipped`）、`purged`（orphan 删除成功数）。HTTP search / 全量读 **不**二次过滤历史 null 行，靠下次成功 rebuild 清掉。
+`BuildResult` / `last_build`（meta）：`skipped` = `skipped_no_media` + `skipped_invalid`；另含 `skipped_excluded`（排除目录命中，不计入 `skipped`）、`purged`（orphan 删除成功数）。HTTP search / 全量读 **不**二次过滤历史 null 行，靠下次成功 rebuild 清掉。历史 JSONL **无** `subtitle` 键时，search 将该字段视为 `""`（仅口播词搜不到）；须成功 **rebuild** 后新行才带该键。
 
 ## HTTP 检索（只读）
 
 `GET /v1/catalog/search` 扫描当前 catalog JSONL，按关键词返回排序后的行子集。
 
-- **不**新增、不修改 JSONL 行字段；`items[]` 与上表一致。
+- **不**新增、不修改 JSONL 行字段。`items[]` 与上表一致，**仅 `subtitle` 例外**：search 响应**省略该键**（不计分后剥离；不回 `""` 占位），避免把口播全文塞进 Agent 上下文。需要全文时看 JSONL / `GET /v1/catalog`，不要当 search item 是完整行。
 - 可选重复 query 参数 `path_prefix`：仅按行内 `tags_path` 做目录边界前缀过滤（多值 OR）；不改关键词 AND / 加权语义。
-- 查询参数、匹配规则（AND 子串、casefold、加权排序、路径关）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。
+- 查询参数、匹配规则（AND 子串含 subtitle、casefold、加权排序、路径关）、Agent 用法见 [workflows/serve-catalog-service.md](../workflows/serve-catalog-service.md)。
 - 大模型找素材（curl + 拼下载链 + 回复模板）：[workflows/llm-media-search-playbook.md](../workflows/llm-media-search-playbook.md)；常驻 HTTP：`GET /v1/docs/llm-media-search-playbook`（`text/markdown`，按本实例注入 `api_base`，可选 `FILE_BROWSER_BASE` → `file_base`）。

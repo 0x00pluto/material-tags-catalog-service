@@ -402,6 +402,7 @@ def test_load_legacy_meta_null(tmp_path: Path) -> None:
     assert loaded["duration_s"] is None
     assert loaded["aspect_ratio"] is None
     assert loaded["orientation"] is None
+    assert loaded["subtitle"] == ""
 
 
 SAMPLE_TAGS_V2 = {
@@ -474,6 +475,73 @@ def test_load_bad_media_meta_becomes_null(tmp_path: Path) -> None:
     assert loaded["duration_s"] is None
     assert loaded["aspect_ratio"] is None
     assert loaded["orientation"] is None
+    assert loaded["subtitle"] == ""
+
+
+def test_load_subtitle_passthrough_and_bad_type(tmp_path: Path) -> None:
+    good = tmp_path / tags_filename_for_stem("talk")
+    _write_tags(
+        good,
+        {
+            "title": "访谈",
+            "description": "要点",
+            "keywords": "口播",
+            "subtitle": "跑遍了整个武汉",
+        },
+    )
+    assert load_material_tags(good)["subtitle"] == "跑遍了整个武汉"
+
+    bad = tmp_path / tags_filename_for_stem("badsub")
+    _write_tags(
+        bad,
+        {
+            "title": "t",
+            "description": "d",
+            "keywords": "k",
+            "subtitle": ["not", "a", "string"],
+        },
+    )
+    assert load_material_tags(bad)["subtitle"] == ""
+
+
+def test_build_catalog_subtitle_v4_and_missing(tmp_path: Path) -> None:
+    root = tmp_path / "lib"
+    root.mkdir()
+    _write_tags(
+        root / tags_filename_for_stem("talk"),
+        {
+            **SAMPLE_TAGS,
+            "schema_version": "4",
+            "subtitle": "跑遍了整个武汉",
+        },
+    )
+    (root / "talk.mp4").write_bytes(b"x")
+    _write_tags(root / tags_filename_for_stem("legacy"), SAMPLE_TAGS)
+    (root / "legacy.mp4").write_bytes(b"x")
+    _write_tags(
+        root / tags_filename_for_stem("empty"),
+        {**SAMPLE_TAGS, "subtitle": ""},
+    )
+    (root / "empty.jpg").write_bytes(b"x")
+    _write_tags(
+        root / tags_filename_for_stem("badtype"),
+        {**SAMPLE_TAGS, "subtitle": ["arr"]},
+    )
+    (root / "badtype.mp4").write_bytes(b"x")
+
+    out = root / CATALOG_FILENAME
+    result = build_catalog(root, out, trigger="test")
+    assert result.written == 4
+    assert result.skipped_invalid == 0
+    rows = {
+        json.loads(line)["stem"]: json.loads(line)
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    assert rows["talk"]["subtitle"] == "跑遍了整个武汉"
+    assert rows["legacy"]["subtitle"] == ""
+    assert rows["empty"]["subtitle"] == ""
+    assert rows["badtype"]["subtitle"] == ""
 
 
 def test_parse_exclude_dir_names_strips_and_drops_empty() -> None:

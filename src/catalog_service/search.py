@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-# keywords +3 / title +2 / description +1；同一 token 每字段最多计一次
+# keywords +3 / title +2 / description +1 / subtitle +1；同一 token 每字段最多计一次
 _WEIGHT_KEYWORDS = 3
 _WEIGHT_TITLE = 2
 _WEIGHT_DESCRIPTION = 1
+_WEIGHT_SUBTITLE = 1
 
 _TOKEN_SPLIT = re.compile(r"[\s,，]+")
 
@@ -87,11 +88,18 @@ def tags_path_matches_any_prefix(
     return False
 
 
+def _subtitle_from_obj(obj: dict[str, Any]) -> str:
+    """历史行无键 / 非 string 当空串；不写入 search items。"""
+    raw = obj.get("subtitle")
+    return raw if isinstance(raw, str) else ""
+
+
 def score_record(
     tokens: list[str],
     title: str,
     description: str,
     keywords: str,
+    subtitle: str = "",
 ) -> int | None:
     """AND 子串匹配并加权打分；未全命中返回 None。
 
@@ -103,6 +111,7 @@ def score_record(
     title_cf = title.casefold()
     desc_cf = description.casefold()
     kw_cf = keywords.casefold()
+    sub_cf = subtitle.casefold()
 
     total = 0
     for token in tokens:
@@ -116,6 +125,9 @@ def score_record(
             hit = True
         if needle in desc_cf:
             total += _WEIGHT_DESCRIPTION
+            hit = True
+        if needle in sub_cf:
+            total += _WEIGHT_SUBTITLE
             hit = True
         if not hit:
             return None
@@ -186,6 +198,7 @@ def search_catalog(
                 row["title"],
                 row["description"],
                 row["keywords"],
+                _subtitle_from_obj(obj),
             )
             if score is None:
                 continue

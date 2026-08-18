@@ -114,6 +114,7 @@ def test_search_ok(tmp_path: Path) -> None:
     assert len(body["items"]) == 1
     assert body["items"][0]["stem"] == "clip"
     assert "score" not in body["items"][0]
+    assert "subtitle" not in body["items"][0]
     # V1 样例：媒体元数据键存在且为 null
     item = body["items"][0]
     assert item["width"] is None
@@ -155,6 +156,7 @@ def test_search_returns_v2_media_meta(tmp_path: Path) -> None:
     assert item["duration_s"] == 11.01
     assert item["aspect_ratio"] == "9:16"
     assert item["orientation"] == "竖屏"
+    assert "subtitle" not in item
 
 
 def test_search_empty_q_400(tmp_path: Path) -> None:
@@ -281,6 +283,42 @@ def test_openapi_includes_search(tmp_path: Path) -> None:
     assert {"q", "limit", "offset", "path_prefix"} <= params
     props = schema["components"]["schemas"]["CatalogSearchResponse"]["properties"]
     assert "path_prefixes" in props
+    item_props = schema["components"]["schemas"]["CatalogItem"]["properties"]
+    assert "subtitle" not in item_props
+
+
+def test_search_omits_subtitle_full_catalog_keeps(tmp_path: Path) -> None:
+    root = tmp_path / "media"
+    root.mkdir()
+    sample = {
+        "schema_version": "4",
+        "title": "访谈成片",
+        "description": "受访者谈城市见闻",
+        "keywords": "访谈",
+        "subtitle": "跑遍了整个武汉",
+    }
+    tags = root / tags_filename_for_stem("talk")
+    tags.write_text(json.dumps(sample, ensure_ascii=False) + "\n", encoding="utf-8")
+    (root / "talk.mp4").write_bytes(b"x")
+    out = root / CATALOG_FILENAME
+    build_catalog(root, out, trigger="test")
+    app = create_app(root=root, out=out, build_lock=BuildLock(), state=AppState())
+    client = TestClient(app)
+
+    catalog = client.get("/v1/catalog")
+    assert catalog.status_code == 200
+    row = json.loads(catalog.text.strip().splitlines()[0])
+    assert row["subtitle"] == "跑遍了整个武汉"
+
+    resp = client.get(
+        "/v1/catalog/search",
+        params={"q": "跑遍了整个武汉"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_matched"] == 1
+    assert body["items"][0]["stem"] == "talk"
+    assert "subtitle" not in body["items"][0]
 
 
 def test_playbook_http_ok(tmp_path: Path) -> None:

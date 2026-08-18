@@ -31,7 +31,7 @@ _SEARCH_LIMIT_DEFAULT = 20
 
 
 class CatalogItem(BaseModel):
-    """catalog JSONL 一行（检索结果项；不含 score）。"""
+    """catalog JSONL 一行的 search 视图（不含 score；省略 subtitle 全文）。"""
 
     stem: str
     tags_path: str
@@ -130,9 +130,10 @@ def create_app(
         summary="关键词检索 catalog",
         tags=["catalog"],
         description=(
-            "对当前 catalog JSONL 做多词 AND 子串匹配（title / description / keywords），"
+            "对当前 catalog JSONL 做多词 AND 子串匹配"
+            "（title / description / keywords / subtitle），"
             "按字段加权排序后返回 top K。"
-            "匹配对英文字段使用 casefold；响应不含 score。"
+            "匹配对英文字段使用 casefold；响应不含 score；items[] 省略 subtitle。"
             "可选重复 query 参数 path_prefix：相对 CATALOG_ROOT 的目录前缀，"
             "仅过滤 tags_path（目录边界：等于或 prefix/ 开头；多值 OR；最多 "
             f"{PATH_PREFIX_MAX} 个；含 .. 或绝对路径 → 400）。"
