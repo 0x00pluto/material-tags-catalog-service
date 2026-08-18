@@ -5,7 +5,7 @@ description: 消费上游 material-tags schema v4 的 subtitle 口播全文：�
 status: accepted
 created: 2026-08-18T09:42:13Z
 last_accepted_at: 2026-08-18T10:01:12Z
-accepted_commit: 7636532
+accepted_commit: 746dadb
 accepted_branch: main
 accepted_scope: R0,R1
 ---
@@ -309,7 +309,7 @@ stateDiagram-v2
 
 ## 14. 工程验收状态
 
-> 由 `/team:prd-accept` 维护；勿手工编造「通过」。最后更新：2026-08-18T10:01:12Z，main@7636532，范围：R0,R1。S2 Claude Code CLI `VERDICT: PASS`（attempt 1/3，临时 base `http://127.0.0.1:59187`）。
+> 由 `/team:prd-accept` 维护；勿手工编造「通过」。最后更新：2026-08-18T10:01:12Z，main@746dadb，范围：R0,R1。S2 Claude Code CLI `VERDICT: PASS`（attempt 1/3，临时 base `http://127.0.0.1:59187`）。
 
 ### 总览
 
@@ -317,8 +317,8 @@ stateDiagram-v2
 |---|---|
 | 工程状态 | `accepted` |
 | 验收判定 | 通过（R0 全通过；R1 文档增强全通过） |
-| 最近验收 | 2026-08-18T10:01:12Z，main@7636532，范围 R0,R1 |
-| 代码提交 | 交付物在工作区未 commit；HEAD `7636532` 尚不含本轮实现 |
+| 最近验收 | 2026-08-18T10:01:12Z，main@746dadb，范围 R0,R1 |
+| 代码提交 | 实现合入 `746dadb`；其后 `df43edc` 为无关 upgrades 文档 |
 | 摘要 | ① JSONL / `CatalogRecord` 透传 `subtitle`（缺键/`""`/坏类型不 skip）；② search 四字段 AND + subtitle +1，仅口播词可命中；③ `items[]` 与 OpenAPI `CatalogItem` 省略该键，全量 GET 仍带全文；④ 契约 / serve / playbook / doc_index 已同步；⑤ R1 口播 curl 与 rebuild 运维说明已写入 |
 
 ### Release 交付
@@ -344,8 +344,7 @@ stateDiagram-v2
 
 ### 未完成与遗留
 
-- 实现仍在 **工作区未 commit**；合入后建议更新 `accepted_commit`。
-- §非目标与开放项未纳入：扫独立字幕/过程稿、`media_type`、FTS、search 回传全文/摘要/`matched_fields`、改 AND、暴露 score、发版 `upgrades/`（O5 非阻塞）。
+- §非目标与开放项未纳入：扫独立字幕/过程稿、`media_type`、FTS、search 回传全文/摘要/`matched_fields`、改 AND、暴露 score。发版 `upgrades/`（O5）非本 PRD 阻塞，本流程未代打 tag。
 - 本流程内 **未** 打 tag、**未** 写发版页。
 
 ### 质量检查
